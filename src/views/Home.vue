@@ -1,5 +1,11 @@
 <template>
   <div class="home">
+    <!-- 顶部栏 -->
+    <div class="home-header">
+      <h1 class="home-title">退休倒计时</h1>
+      <router-link to="/settings" class="settings-btn">⚙️</router-link>
+    </div>
+
     <!-- 未配置提示 -->
     <div v-if="!userStore.isConfigured" class="card setup-prompt">
       <div class="setup-icon">⚙️</div>
@@ -151,7 +157,30 @@ onMounted(async () => {
 
 <style scoped>
 .home {
-  padding-top: 8px;
+  padding-top: 0;
+}
+
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.home-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.settings-btn {
+  font-size: 22px;
+  text-decoration: none;
+  padding: 4px;
 }
 
 .setup-prompt {
