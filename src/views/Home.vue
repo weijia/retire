@@ -30,7 +30,7 @@
         <template v-if="!hasReachedTargetRetire">
           <div class="retire-year-item">
             <div class="retire-year-label">距停止工作还有</div>
-            <div class="retire-year-value">{{ yearsToTargetRetire }} 年</div>
+            <div class="retire-year-value">{{ yearsToRetire }} 年</div>
           </div>
           <div class="retire-year-divider"></div>
           <div class="retire-year-item">
@@ -51,7 +51,7 @@
         </template>
       </div>
 
-      <!-- 退休时预计资产 -->
+      <!-- 退休时预计资产（实际退休/领退休金时） -->
       <div class="card retirement-estimate">
         <div class="card-header">
           <span class="card-title">退休时预计资产</span>
@@ -65,53 +65,47 @@
             <span>当前总资产</span>
             <span>{{ formatMoney(assetsStore.totalAssets) }}</span>
           </div>
-          <div class="estimate-row" v-if="yearsToRetire > 0">
-            <span>预期总收入（{{ yearsToRetire }}年）</span>
-            <span class="amount-positive">+{{ formatMoney(totalIncome) }}</span>
+          <div class="estimate-row" v-if="yearsToActualRetire > 0">
+            <span>预期净收入（距退休 {{ yearsToActualRetire }} 年）</span>
+            <span :class="netPerYear >= 0 ? 'amount-positive' : 'amount-negative'">
+              {{ netPerYear >= 0 ? '+' : '' }}{{ formatMoney(netPerYear * yearsToActualRetire) }}
+            </span>
           </div>
           <div class="estimate-row" v-else>
-            <span>当前年收入</span>
-            <span class="amount-positive">+{{ formatMoney(userStore.config!.data.annualIncome) }}/年</span>
-          </div>
-          <div class="estimate-row" v-if="yearsToRetire > 0">
-            <span>预期总支出（{{ yearsToRetire }}年）</span>
-            <span class="amount-negative">-{{ formatMoney(totalExpense) }}</span>
-          </div>
-          <div class="estimate-row" v-else>
-            <span>当前年支出</span>
-            <span class="amount-negative">-{{ formatMoney(plansStore.annualPlanTotal) }}/年</span>
+            <span>每年净收支</span>
+            <span :class="netPerYear >= 0 ? 'amount-positive' : 'amount-negative'">
+              {{ netPerYear >= 0 ? '+' : '' }}{{ formatMoney(netPerYear) }}/年
+            </span>
           </div>
           <div class="estimate-row estimate-divider">
-            <span>年均计划支出</span>
-            <span>{{ formatMoney(plansStore.annualPlanTotal) }}/年</span>
+            <span>年均收入 / 支出</span>
+            <span>{{ formatMoney(userStore.config!.data.annualIncome) }} / {{ formatMoney(plansStore.annualPlanTotal) }}</span>
           </div>
         </div>
       </div>
 
       <!-- 空窗期消耗 -->
-      <div class="card retirement-estimate" v-if="gapYears > 0">
+      <div class="card retirement-estimate" v-if="gapYears > 0 && !hasReachedTargetRetire">
         <div class="card-header">
-          <span class="card-title">领退休金前资产预估</span>
-          <span class="card-link" @click="$router.push('/settings')">修改参数 ›</span>
+          <span class="card-title">空窗期资产变化</span>
         </div>
         <div class="estimate-subtitle">
-          停止工作 {{ userStore.config!.data.targetRetireAge }} 岁 → 领退休金 {{ userStore.config!.data.actualRetireAge }} 岁，空窗期 {{ gapYears }} 年
-        </div>
-        <div class="estimate-amount" :class="{ negative: gapConsumption.remaining < 0 }">
-          {{ formatMoney(gapConsumption.remaining) }}
+          停止工作 {{ userStore.config!.data.targetRetireAge }} 岁 → 领退休金 {{ userStore.config!.data.actualRetireAge }} 岁
         </div>
         <div class="estimate-detail">
           <div class="estimate-row">
             <span>停止工作时资产</span>
-            <span>{{ formatMoney(retirementAssets) }}</span>
+            <span>{{ formatMoney(assetsAtTargetRetire) }}</span>
           </div>
           <div class="estimate-row">
-            <span>空窗期 {{ gapYears }} 年总消耗</span>
-            <span class="amount-negative">-{{ formatMoney(gapConsumption.totalConsumption) }}</span>
+            <span>空窗期 {{ gapYears }} 年消耗</span>
+            <span class="amount-negative">-{{ formatMoney(plansStore.annualPlanTotal * gapYears) }}</span>
           </div>
           <div class="estimate-row estimate-divider">
-            <span>年均支出（空窗期无收入）</span>
-            <span class="amount-negative">{{ formatMoney(plansStore.annualPlanTotal) }}/年</span>
+            <span>空窗期后剩余</span>
+            <span :class="assetsAfterGap >= 0 ? 'amount-positive' : 'amount-negative'">
+              {{ formatMoney(assetsAfterGap) }}
+            </span>
           </div>
         </div>
       </div>
@@ -199,7 +193,7 @@ import { useAssetsStore } from '../stores/assets';
 import { usePlansStore } from '../stores/plans';
 import { useExpensesStore } from '../stores/expenses';
 import { formatMoney } from '../utils/format';
-import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets, calcGapPeriodConsumption } from '../utils/calc';
+import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets } from '../utils/calc';
 import { AccountTypeLabels } from '../types';
 import CountDown from '../components/CountDown.vue';
 import ProgressRing from '../components/ProgressRing.vue';
@@ -233,40 +227,37 @@ const remaining = computed(() =>
   plansStore.monthlyPlanTotal - expensesStore.monthlyTotal
 );
 
-// 退休时预计资产计算
+// 距停止工作还有多少年
 const yearsToRetire = computed(() => {
   if (!userStore.config) return 0;
   return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.targetRetireAge);
 });
 
-// 距停止工作还有多少年
-const yearsToTargetRetire = computed(() => {
-  if (!userStore.config) return 0;
-  return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.targetRetireAge);
-});
-
-// 是否已到达目标退休年龄
-const hasReachedTargetRetire = computed(() => {
-  if (!userStore.config) return false;
-  return yearsToTargetRetire.value <= 0;
-});
-
-// 距领退休金还有多少年
+// 距实际退休（领退休金）还有多少年
 const yearsToActualRetire = computed(() => {
   if (!userStore.config) return 0;
   return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.actualRetireAge);
 });
 
-const totalIncome = computed(() => {
-  if (!userStore.config) return 0;
-  return userStore.config.data.annualIncome * yearsToRetire.value;
+// 是否已到达目标退休年龄
+const hasReachedTargetRetire = computed(() => {
+  if (!userStore.config) return false;
+  return yearsToRetire.value <= 0;
 });
 
-const totalExpense = computed(() =>
-  plansStore.annualPlanTotal * yearsToRetire.value
-);
-
+// 退休时预计资产 = 当前资产 + (年收入-年支出) × 距实际退休年数
 const retirementAssets = computed(() => {
+  if (!userStore.config) return 0;
+  return calcRetirementAssets(
+    assetsStore.totalAssets,
+    userStore.config.data.annualIncome,
+    plansStore.annualPlanTotal,
+    yearsToActualRetire.value
+  );
+});
+
+// 距停止工作时的资产（用于计算空窗期消耗）
+const assetsAtTargetRetire = computed(() => {
   if (!userStore.config) return 0;
   return calcRetirementAssets(
     assetsStore.totalAssets,
@@ -276,21 +267,21 @@ const retirementAssets = computed(() => {
   );
 });
 
+// 每年净收支
+const netPerYear = computed(() => {
+  if (!userStore.config) return 0;
+  return userStore.config.data.annualIncome - plansStore.annualPlanTotal;
+});
+
+// 空窗期后剩余资产
+const assetsAfterGap = computed(() => {
+  return assetsAtTargetRetire.value - plansStore.annualPlanTotal * gapYears.value;
+});
+
 // 实际退休时盈余计算（空窗期消耗）
 const gapYears = computed(() => {
   if (!userStore.config) return 0;
   return Math.max(0, userStore.config.data.actualRetireAge - userStore.config.data.targetRetireAge);
-});
-
-const gapConsumption = computed(() => {
-  if (!userStore.config || gapYears.value <= 0) {
-    return { remaining: retirementAssets.value, totalConsumption: 0 };
-  }
-  return calcGapPeriodConsumption(
-    retirementAssets.value,
-    plansStore.annualPlanTotal,
-    gapYears.value
-  );
 });
 
 onMounted(async () => {
