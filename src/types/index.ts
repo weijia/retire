@@ -15,8 +15,7 @@ export interface UserConfig extends BaseDocument {
     targetRetireAge: number;
     actualRetireAge: number;
     gender: 'male' | 'female';
-
-
+    monthlyIncome?: number;  // 月收入，用于计算未来工资收入
   };
 }
 

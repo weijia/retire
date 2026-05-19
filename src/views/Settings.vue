@@ -47,7 +47,18 @@
           max="75"
         />
       </div>
-      <!-- 收入通过工资收入资产管理，此处不再设置 -->
+      <div class="form-group">
+        <label class="form-label">月收入（元）</label>
+        <div class="form-hint">用于计算未来工资收入总额</div>
+        <input
+          v-model.number="form.monthlyIncome"
+          type="number"
+          class="form-input"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+        />
+      </div>
       <button class="btn btn-primary btn-block" @click="save" :disabled="saving">
         {{ saving ? '保存中...' : '保存设置' }}
       </button>
@@ -85,12 +96,15 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
+import { useAssetsStore } from '../stores/assets';
+import { calcYearsMonthsToRetire } from '../utils/calc';
 
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
 
 const router = useRouter();
 const userStore = useUserStore();
+const assetsStore = useAssetsStore();
 
 const saving = ref(false);
 
@@ -99,13 +113,28 @@ const form = ref({
   targetRetireAge: 60,
   actualRetireAge: 65,
   gender: 'male' as 'male' | 'female',
-  // 收入通过工资收入资产管理
+  monthlyIncome: 0,
 });
 
 onMounted(async () => {
   await userStore.loadConfig();
+  await assetsStore.loadAccounts();
   if (userStore.config) {
-    form.value = { ...userStore.config.data };
+    form.value = {
+      ...userStore.config.data,
+      monthlyIncome: userStore.config.data.monthlyIncome ?? 0
+    };
+    // 兼容旧数据：如果没有 monthlyIncome，尝试从工资收入资产反推
+    if (form.value.monthlyIncome === 0) {
+      const salaryAccount = assetsStore.getActiveSalaryAccount();
+      if (salaryAccount) {
+        const desc = salaryAccount.data.description || '';
+        const descMatch = desc.match(/月收入:\s*(\d+)/);
+        if (descMatch) {
+          form.value.monthlyIncome = parseInt(descMatch[1]);
+        }
+      }
+    }
   }
 });
 
@@ -119,7 +148,15 @@ async function save() {
     // 保存配置
     await userStore.saveConfig(form.value);
     userStore.checkConfigured();
-    
+
+    // 更新工资收入资产
+    if (form.value.monthlyIncome > 0 && form.value.targetRetireAge > 0) {
+      const { years, months } = calcYearsMonthsToRetire(form.value.birthDate, form.value.targetRetireAge);
+      const monthsToRetire = years * 12 + months;
+      if (monthsToRetire > 0) {
+        await assetsStore.updateSalaryAsset(form.value.monthlyIncome, monthsToRetire);
+      }
+    }
 
     router.back();
   } finally {
