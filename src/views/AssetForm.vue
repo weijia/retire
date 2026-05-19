@@ -22,10 +22,34 @@
         </select>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">当前余额（元）*</label>
-        <input v-model.number="form.balance" type="number" class="form-input" placeholder="0.00" step="0.01" />
-      </div>
+      <!-- 工资收入特殊处理 -->
+      <template v-if="form.accountType === 'salary_income'">
+        <div class="form-group">
+          <label class="form-label">收入类型</label>
+          <select v-model="salaryType" class="form-select">
+            <option value="monthly">月收入</option>
+            <option value="yearly">年收入</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">{{ salaryType === 'monthly' ? '月收入' : '年收入' }}（元）*</label>
+          <input
+            v-model.number="form.balance"
+            type="number"
+            class="form-input"
+            :placeholder="salaryType === 'monthly' ? '如：15000' : '如：180000'"
+            step="0.01"
+          />
+          <div class="form-hint">填写{{ salaryType === 'monthly' ? '月' : '年' }}收入金额，用于计算未来工资总收入</div>
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="form-group">
+          <label class="form-label">当前余额（元）*</label>
+          <input v-model.number="form.balance" type="number" class="form-input" placeholder="0.00" step="0.01" />
+        </div>
+      </template>
 
       <div class="form-group" v-if="form.accountType === 'bank_deposit'">
         <label class="form-label">银行名称</label>
@@ -74,6 +98,7 @@ const route = useRoute();
 const router = useRouter();
 const assetsStore = useAssetsStore();
 const saving = ref(false);
+const salaryType = ref<'monthly' | 'yearly'>('monthly');
 
 const isEdit = computed(() => !!route.params.id);
 
@@ -104,6 +129,15 @@ onMounted(async () => {
         isHidden: account.data.isHidden,
         currency: account.data.currency || 'CNY',
       };
+      // 从 description 中解析收入类型（如果有）
+      if (account.data.accountType === 'salary_income') {
+        const desc = account.data.description || '';
+        if (desc.includes('年收入')) {
+          salaryType.value = 'yearly';
+        } else {
+          salaryType.value = 'monthly';
+        }
+      }
     }
   }
 });
@@ -116,7 +150,19 @@ async function handleSave() {
 
   saving.value = true;
   try {
-    const data = { ...form.value, accountType: form.value.accountType as AccountType };
+    // 构建 description，包含收入类型信息
+    let description = form.value.description || '';
+    if (form.value.accountType === 'salary_income') {
+      const typeLabel = salaryType.value === 'monthly' ? '月收入' : '年收入';
+      description = `${typeLabel}: ${form.value.balance}${description ? ', ' + description : ''}`;
+    }
+
+    const data = {
+      ...form.value,
+      accountType: form.value.accountType as AccountType,
+      description,
+    };
+
     if (isEdit.value) {
       await assetsStore.updateAccount(route.params.id as string, data as any);
     } else {
@@ -152,5 +198,11 @@ async function handleDelete() {
   gap: 8px;
   cursor: pointer;
   font-size: 14px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 4px;
 }
 </style>

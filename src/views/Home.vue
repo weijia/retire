@@ -261,10 +261,31 @@ const nonSalaryAssets = computed(() => {
     .reduce((sum, a) => sum + a.data.balance, 0);
 });
 
-// 未来工资总收入（从工资收入资产获取，或从月收入计算）
-const futureSalaryTotal = computed(() => {
+// 获取年收入（从工资收入资产解析）
+const getAnnualIncome = () => {
   const salaryAccount = assetsStore.getActiveSalaryAccount();
-  if (salaryAccount) return salaryAccount.data.balance;
+  if (!salaryAccount) return 0;
+
+  const desc = salaryAccount.data.description || '';
+
+  // 从 description 解析收入类型和金额
+  // 格式："月收入: 15000" 或 "年收入: 180000"
+  const monthlyMatch = desc.match(/月收入:\s*(\d+)/);
+  if (monthlyMatch) return parseInt(monthlyMatch[1]) * 12;
+
+  const yearlyMatch = desc.match(/年收入:\s*(\d+)/);
+  if (yearlyMatch) return parseInt(yearlyMatch[1]);
+
+  // 兼容旧数据：从 name 解析月收入，格式："工资收入 (15000/月 × 120月)"
+  const nameMatch = salaryAccount.data.name.match(/(\d+)\/月/);
+  if (nameMatch) return parseInt(nameMatch[1]) * 12;
+
+  // 如果都无法解析，假设余额是月收入
+  return salaryAccount.data.balance * 12;
+};
+
+// 未来工资总收入 = 年收入 × 剩余工作年数
+const futureSalaryTotal = computed(() => {
   return getAnnualIncome() * yearsToRetire.value;
 });
 
@@ -287,34 +308,6 @@ const retirementAssets = computed(() => {
   const expenseUntilActualRetire = plansStore.annualPlanTotal * yearsToActualRetire.value;
   return nonSalaryAssets.value + salaryUntilTargetRetire - expenseUntilActualRetire;
 });
-
-// 获取年收入（从工资收入资产反算月收入）
-const getAnnualIncome = () => {
-  const salaryAccount = assetsStore.getActiveSalaryAccount();
-  if (!salaryAccount) return 0;
-
-  // 从 name 解析月收入，格式："工资收入 (15000/月 × 120月)"
-  const nameMatch = salaryAccount.data.name.match(/(\d+)\/月/);
-  if (nameMatch) return parseInt(nameMatch[1]) * 12;
-
-  // 从 description 解析，格式："月收入: 15000, 剩余工作月数: 120"
-  const desc = salaryAccount.data.description || '';
-  const descMatch = desc.match(/月收入:\s*(\d+)/);
-  if (descMatch) return parseInt(descMatch[1]) * 12;
-
-  // 如果无法解析，使用工资收入资产的余额除以剩余工作月数来反推月收入
-  // 从 description 解析剩余工作月数
-  const monthsMatch = desc.match(/剩余工作月数:\s*(\d+)/);
-  if (monthsMatch) {
-    const months = parseInt(monthsMatch[1]);
-    if (months > 0) {
-      return Math.round((salaryAccount.data.balance / months) * 12);
-    }
-  }
-
-  // 如果都无法解析，返回工资收入资产余额作为年收入（假设是1年的收入）
-  return salaryAccount.data.balance;
-};
 
 // 空窗期后剩余资产
 const assetsAfterGap = computed(() => {
