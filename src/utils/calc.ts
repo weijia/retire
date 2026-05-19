@@ -63,3 +63,24 @@ export function calcExpenseProgress(actual: number, planned: number): number {
   if (planned <= 0) return 0;
   return Math.min(100, Math.round((actual / planned) * 100));
 }
+
+// 计算距退休的精确年数（保留1位小数）
+export function calcYearsToRetire(birthDate: string, targetAge: number): number {
+  const retire = calcRetireDate(birthDate, targetAge);
+  const today = new Date();
+  const diffMs = retire.getTime() - today.getTime();
+  if (diffMs <= 0) return 0;
+  return Math.round((diffMs / (1000 * 60 * 60 * 24 * 365.25)) * 10) / 10;
+}
+
+// 计算退休时预计资产
+// 退休时资产 = 当前总资产 + (预期年收入 × 距退休年数) - (年均计划支出 × 距退休年数)
+export function calcRetirementAssets(
+  currentAssets: number,
+  annualIncome: number,
+  annualExpense: number,
+  yearsToRetire: number
+): number {
+  if (yearsToRetire <= 0) return currentAssets;
+  return currentAssets + (annualIncome - annualExpense) * yearsToRetire;
+}

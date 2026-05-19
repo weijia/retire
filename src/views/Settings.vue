@@ -43,6 +43,18 @@
           max="70"
         />
       </div>
+      <div class="form-group">
+        <label class="form-label">预期年收入（元）</label>
+        <div class="form-hint">您当前每年的税后净收入，用于估算退休时可积累的资产</div>
+        <input
+          v-model.number="form.annualIncome"
+          type="number"
+          class="form-input"
+          placeholder="如：200000"
+          min="0"
+          step="1000"
+        />
+      </div>
       <button class="btn btn-primary btn-block" @click="save" :disabled="saving">
         {{ saving ? '保存中...' : '保存设置' }}
       </button>
@@ -76,6 +88,7 @@ const form = ref({
   birthDate: '',
   targetRetireAge: 60,
   gender: 'male' as 'male' | 'female',
+  annualIncome: 0,
 });
 
 onMounted(async () => {

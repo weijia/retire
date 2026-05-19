@@ -25,6 +25,35 @@
         />
       </div>
 
+      <!-- 退休时预计资产 -->
+      <div class="card retirement-estimate">
+        <div class="card-header">
+          <span class="card-title">退休时预计资产</span>
+          <span class="card-link" @click="$router.push('/settings')">修改参数 ›</span>
+        </div>
+        <div class="estimate-amount" :class="{ negative: retirementAssets < 0 }">
+          {{ formatMoney(retirementAssets) }}
+        </div>
+        <div class="estimate-detail">
+          <div class="estimate-row">
+            <span>当前总资产</span>
+            <span>{{ formatMoney(assetsStore.totalAssets) }}</span>
+          </div>
+          <div class="estimate-row">
+            <span>预期总收入（{{ yearsToRetire }}年）</span>
+            <span class="amount-positive">+{{ formatMoney(totalIncome) }}</span>
+          </div>
+          <div class="estimate-row">
+            <span>预期总支出（{{ yearsToRetire }}年）</span>
+            <span class="amount-negative">-{{ formatMoney(totalExpense) }}</span>
+          </div>
+          <div class="estimate-row estimate-divider">
+            <span>年均计划支出</span>
+            <span>{{ formatMoney(plansStore.annualPlanTotal) }}/年</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 资产总览 -->
       <div class="card">
         <div class="card-header">
@@ -108,7 +137,7 @@ import { useAssetsStore } from '../stores/assets';
 import { usePlansStore } from '../stores/plans';
 import { useExpensesStore } from '../stores/expenses';
 import { formatMoney } from '../utils/format';
-import { calcExpenseProgress } from '../utils/calc';
+import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets } from '../utils/calc';
 import { AccountTypeLabels } from '../types';
 import CountDown from '../components/CountDown.vue';
 import ProgressRing from '../components/ProgressRing.vue';
@@ -141,6 +170,31 @@ const progressColor = computed(() => {
 const remaining = computed(() =>
   plansStore.monthlyPlanTotal - expensesStore.monthlyTotal
 );
+
+// 退休时预计资产计算
+const yearsToRetire = computed(() => {
+  if (!userStore.config) return 0;
+  return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.targetRetireAge);
+});
+
+const totalIncome = computed(() => {
+  if (!userStore.config) return 0;
+  return userStore.config.data.annualIncome * yearsToRetire.value;
+});
+
+const totalExpense = computed(() =>
+  plansStore.annualPlanTotal * yearsToRetire.value
+);
+
+const retirementAssets = computed(() => {
+  if (!userStore.config) return 0;
+  return calcRetirementAssets(
+    assetsStore.totalAssets,
+    userStore.config.data.annualIncome,
+    plansStore.annualPlanTotal,
+    yearsToRetire.value
+  );
+});
 
 onMounted(async () => {
   await userStore.loadConfig();
@@ -284,5 +338,36 @@ onMounted(async () => {
   color: var(--text-light);
   padding: 16px 0;
   font-size: 13px;
+}
+
+.retirement-estimate .estimate-amount {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  margin: 8px 0 12px;
+}
+
+.retirement-estimate .estimate-amount.negative {
+  color: var(--danger);
+}
+
+.estimate-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.estimate-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.estimate-divider {
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+  margin-top: 2px;
 }
 </style>
