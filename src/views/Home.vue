@@ -263,7 +263,7 @@ const targetRetireYear = computed(() => {
 const retirementAssets = computed(() => {
   if (!userStore.config) return 0;
   return calcRetirementAssets(
-    assetsStore.totalAssets,
+    nonSalaryAssets.value,
     getAnnualIncome(),
     plansStore.annualPlanTotal,
     yearsToActualRetire.value
@@ -274,21 +274,28 @@ const retirementAssets = computed(() => {
 const assetsAtTargetRetire = computed(() => {
   if (!userStore.config) return 0;
   return calcRetirementAssets(
-    assetsStore.totalAssets,
+    nonSalaryAssets.value,
     getAnnualIncome(),
     plansStore.annualPlanTotal,
     yearsToRetire.value
   );
 });
 
-// 获取年收入（从工资收入资产计算）
+// 获取非工资收入资产总额（排除工资收入，因为工资收入已作为资产直接计入）
+const nonSalaryAssets = computed(() => {
+  return assetsStore.visibleAccounts
+    .filter(a => a.data.accountType !== 'salary_income')
+    .reduce((sum, a) => sum + a.data.balance, 0);
+});
+
+// 获取年收入（从工资收入资产反算月收入）
 const getAnnualIncome = () => {
   const salaryAccount = assetsStore.getActiveSalaryAccount();
   if (!salaryAccount) return 0;
-  // 优先从 name 解析，格式："工资收入 (15000/月 x 120月)"
+  // 从 name 解析月收入，格式："工资收入 (15000/月 x 120月)"
   const nameMatch = salaryAccount.data.name.match(/(\d+)\/月/);
   if (nameMatch) return parseInt(nameMatch[1]) * 12;
-  // 其次从 description 解析，格式："月收入: 15000, 剩余工作月数: 120"
+  // 从 description 解析，格式："月收入: 15000, 剩余工作月数: 120"
   const desc = salaryAccount.data.description || '';
   const descMatch = desc.match(/月收入: (\d+)/);
   if (descMatch) return parseInt(descMatch[1]) * 12;
