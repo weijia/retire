@@ -21,7 +21,8 @@
       <div class="card countdown-wrapper">
         <CountDown
           :birthDate="userStore.config!.data.birthDate"
-          :targetAge="userStore.config!.data.targetRetireAge"
+          :targetAge="hasReachedTargetRetire ? userStore.config!.data.actualRetireAge : userStore.config!.data.targetRetireAge"
+          :label="hasReachedTargetRetire ? '领退休金日' : '目标退休日'"
         />
       </div>
 

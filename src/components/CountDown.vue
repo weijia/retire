@@ -5,7 +5,7 @@
       <span class="days-label">天</span>
     </div>
     <div class="countdown-info">
-      <div class="retire-date">目标退休日：{{ retireDateStr }}</div>
+      <div class="retire-date">{{ label }}：{{ retireDateStr }}</div>
       <div class="countdown-detail" v-if="years > 0 || months > 0">
         约 {{ years }} 年 {{ months }} 个月
       </div>
@@ -17,10 +17,13 @@
 import { computed } from 'vue';
 import { calcDaysToRetire, calcYearsMonthsToRetire, calcRetireDate } from '../utils/calc';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   birthDate: string;
   targetAge: number;
-}>();
+  label?: string;
+}>(), {
+  label: '目标退休日',
+});
 
 const days = computed(() => calcDaysToRetire(props.birthDate, props.targetAge));
 const { years, months } = computed(() => calcYearsMonthsToRetire(props.birthDate, props.targetAge)).value;
