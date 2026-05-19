@@ -30,8 +30,8 @@
       <div class="card retire-years">
         <template v-if="!hasReachedTargetRetire">
           <div class="retire-year-item">
-            <div class="retire-year-label">距停止工作还有</div>
-            <div class="retire-year-value">{{ yearsToRetire }} 年</div>
+            <div class="retire-year-label">距停止工作还有 {{ yearsToRetire }} 年</div>
+            <div class="retire-year-value retire-years-range">{{ currentYear }}-{{ targetRetireYear }}</div>
           </div>
           <div class="retire-year-divider"></div>
           <div class="retire-year-item">
@@ -42,7 +42,7 @@
         <template v-else>
           <div class="retire-year-item">
             <div class="retire-year-label">您已停止工作</div>
-            <div class="retire-year-value retire-status passed">已到达</div>
+            <div class="retire-year-value retire-years-range">{{ targetRetireYear }}年</div>
           </div>
           <div class="retire-year-divider"></div>
           <div class="retire-year-item">
@@ -247,6 +247,16 @@ const yearsToActualRetire = computed(() => {
 const hasReachedTargetRetire = computed(() => {
   if (!userStore.config) return false;
   return yearsToRetire.value <= 0;
+});
+
+// 当前年份
+const currentYear = computed(() => new Date().getFullYear());
+
+// 目标退休年份
+const targetRetireYear = computed(() => {
+  if (!userStore.config) return 0;
+  const birthYear = new Date(userStore.config.data.birthDate).getFullYear();
+  return birthYear + userStore.config.data.targetRetireAge;
 });
 
 // 退休时预计资产 = 当前资产 + (年收入-年支出) × 距实际退休年数
@@ -499,6 +509,11 @@ onMounted(async () => {
 .retire-year-value.retire-status.passed {
   font-size: 16px;
   color: var(--success, #52c41a);
+}
+
+.retire-year-value.retire-years-range {
+  font-size: 18px;
+  color: var(--text-secondary);
 }
 
 .retire-year-divider {
