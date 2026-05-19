@@ -76,7 +76,7 @@ export const useExpensesStore = defineStore('expenses', () => {
   }
 
   // 自动记录固定支出
-  async function autoRecordFixedExpenses(fixedPlans: { _id: string; data: { name: string; monthlyAmount: number; category: string } }[]) {
+  async function autoRecordFixedExpenses(fixedPlans: { _id: string; data: { monthlyAmount: number; category: string; description?: string } }[]) {
     const today = new Date();
     const dateStr = today.toISOString().slice(0, 10);
 
@@ -87,7 +87,7 @@ export const useExpensesStore = defineStore('expenses', () => {
           date: dateStr,
           amount: plan.data.monthlyAmount,
           category: plan.data.category as any,
-          description: `[自动] ${plan.data.name}`,
+          description: `[自动] ${plan.data.category}`,
           linkedPlanId: plan._id,
           tags: ['自动记录', '固定支出'],
         });

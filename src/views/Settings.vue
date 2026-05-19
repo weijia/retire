@@ -8,14 +8,7 @@
 
     <div class="card">
       <div class="card-title">个人信息</div>
-      <div class="form-group">
-        <label class="form-label">姓名</label>
-        <input
-          v-model="form.name"
-          class="form-input"
-          placeholder="请输入姓名"
-        />
-      </div>
+
       <div class="form-group">
         <label class="form-label">性别</label>
         <select v-model="form.gender" class="form-select">
@@ -102,7 +95,6 @@ const userStore = useUserStore();
 const saving = ref(false);
 
 const form = ref({
-  name: '',
   birthDate: '',
   targetRetireAge: 60,
   actualRetireAge: 65,

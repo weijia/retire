@@ -11,7 +11,6 @@ export interface BaseDocument {
 export interface UserConfig extends BaseDocument {
   type: 'user_config';
   data: {
-    name: string;
     birthDate: string;
     targetRetireAge: number;
     actualRetireAge: number;
@@ -80,9 +79,9 @@ export const ExpenseCategoryLabels: Record<ExpenseCategory, string> = {
 export interface ExpensePlan extends BaseDocument {
   type: 'expense_plan';
   data: {
+    name: string;
     year: number;
     category: ExpenseCategory;
-    name: string;
     annualAmount: number;
     monthlyAmount: number;
     frequency: 'monthly' | 'quarterly' | 'yearly' | 'onetime';
