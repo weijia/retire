@@ -50,7 +50,7 @@ jobs:
         run: npm run build
 
       - name: Upload to WebDAV
-        uses: weijia/action-upload-webdav@v1.0.1
+        uses: weijia/action-upload-webdav@master
         with:
           webdav-url: ${{ secrets.WEBDAV_URL }}
           webdav-username: ${{ secrets.WEBDAV_USERNAME }}
