@@ -111,14 +111,17 @@
         </div>
       </div>
 
-      <!-- 资产总览 -->
+      <!-- 资产总览（目标退休日时） -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">资产总览</span>
+          <span class="card-title">目标退休日总资产</span>
           <router-link to="/assets" class="card-link">查看全部 ›</router-link>
         </div>
         <div class="total-asset">
-          {{ formatMoney(assetsStore.totalAssets) }}
+          {{ formatMoney(assetsAtTargetRetire) }}
+        </div>
+        <div class="asset-subtitle">
+          当前资产 {{ formatMoney(assetsStore.totalAssets) }} + 未来工资收入
         </div>
         <div class="asset-summary">
           <div
@@ -376,6 +379,12 @@ onMounted(async () => {
   font-size: 28px;
   font-weight: 700;
   color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.asset-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
   margin-bottom: 12px;
 }
 
