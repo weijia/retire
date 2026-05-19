@@ -25,6 +25,19 @@
         />
       </div>
 
+      <!-- 两个退休倒计时 -->
+      <div class="card retire-years">
+        <div class="retire-year-item">
+          <div class="retire-year-label">距停止工作还有</div>
+          <div class="retire-year-value">{{ yearsToTargetRetire }} 年</div>
+        </div>
+        <div class="retire-year-divider"></div>
+        <div class="retire-year-item">
+          <div class="retire-year-label">距领退休金还有</div>
+          <div class="retire-year-value">{{ yearsToActualRetire }} 年</div>
+        </div>
+      </div>
+
       <!-- 退休时预计资产 -->
       <div class="card retirement-estimate">
         <div class="card-header">
@@ -203,6 +216,18 @@ const remaining = computed(() =>
 const yearsToRetire = computed(() => {
   if (!userStore.config) return 0;
   return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.targetRetireAge);
+});
+
+// 距停止工作还有多少年
+const yearsToTargetRetire = computed(() => {
+  if (!userStore.config) return 0;
+  return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.targetRetireAge);
+});
+
+// 距领退休金还有多少年
+const yearsToActualRetire = computed(() => {
+  if (!userStore.config) return 0;
+  return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.actualRetireAge);
 });
 
 const totalIncome = computed(() => {
@@ -406,6 +431,36 @@ onMounted(async () => {
   color: var(--text-secondary);
   text-align: center;
   margin-bottom: 4px;
+}
+
+.retire-years {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 16px 0;
+}
+
+.retire-year-item {
+  flex: 1;
+  text-align: center;
+}
+
+.retire-year-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.retire-year-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.retire-year-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
 }
 
 .estimate-detail {
