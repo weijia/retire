@@ -25,11 +25,15 @@ export const useUserStore = defineStore('user', () => {
   // 保存用户配置
   async function saveConfig(data: UserConfig['data']) {
     const now = new Date().toISOString();
+    // 深拷贝 data，确保去除 Vue reactive proxy
+    const plainData = JSON.parse(JSON.stringify(data));
     if (config.value) {
-      const updated = {
-        ...config.value,
-        data,
+      const updated: UserConfig = {
+        _id: DOC_ID,
+        type: 'user_config' as const,
+        createdAt: config.value.createdAt,
         updatedAt: now,
+        data: plainData,
       };
       await putDoc(updated);
       config.value = updated;
@@ -39,7 +43,7 @@ export const useUserStore = defineStore('user', () => {
         type: 'user_config',
         createdAt: now,
         updatedAt: now,
-        data,
+        data: plainData,
       };
       await putDoc(newDoc);
       config.value = newDoc;
