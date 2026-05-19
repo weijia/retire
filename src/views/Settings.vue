@@ -27,12 +27,14 @@
         <label class="form-label">出生日期</label>
         <input
           v-model="form.birthDate"
-          type="date"
+          type="text"
           class="form-input"
+          placeholder="如：1990-06-15"
         />
       </div>
       <div class="form-group">
         <label class="form-label">目标退休年龄</label>
+        <div class="form-hint">您计划在多少岁时停止工作、开始退休生活</div>
         <input
           v-model.number="form.targetRetireAge"
           type="number"
@@ -141,5 +143,11 @@ async function importData(event: Event) {
 .data-actions {
   display: flex;
   gap: 12px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 4px;
 }
 </style>
