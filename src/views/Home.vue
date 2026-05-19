@@ -54,34 +54,30 @@
         </div>
       </div>
 
-      <!-- 实际退休时盈余 -->
-      <div class="card retirement-estimate" v-if="extraYears > 0">
+      <!-- 空窗期消耗 -->
+      <div class="card retirement-estimate" v-if="gapYears > 0">
         <div class="card-header">
-          <span class="card-title">实际退休时盈余</span>
+          <span class="card-title">领退休金前资产预估</span>
           <span class="card-link" @click="$router.push('/settings')">修改参数 ›</span>
         </div>
         <div class="estimate-subtitle">
-          目标 {{ userStore.config!.data.targetRetireAge }} 岁 → 实际 {{ userStore.config!.data.actualRetireAge }} 岁，多工作 {{ extraYears }} 年
+          停止工作 {{ userStore.config!.data.targetRetireAge }} 岁 → 领退休金 {{ userStore.config!.data.actualRetireAge }} 岁，空窗期 {{ gapYears }} 年
         </div>
-        <div class="estimate-amount" :class="{ negative: actualRetirementSurplus < 0 }">
-          {{ formatMoney(actualRetirementSurplus) }}
+        <div class="estimate-amount" :class="{ negative: gapConsumption.remaining < 0 }">
+          {{ formatMoney(gapConsumption.remaining) }}
         </div>
         <div class="estimate-detail">
           <div class="estimate-row">
-            <span>目标退休时资产</span>
+            <span>停止工作时资产</span>
             <span>{{ formatMoney(retirementAssets) }}</span>
           </div>
           <div class="estimate-row">
-            <span>额外 {{ extraYears }} 年净收入</span>
-            <span :class="extraYearNet >= 0 ? 'amount-positive' : 'amount-negative'">
-              {{ extraYearNet >= 0 ? '+' : '' }}{{ formatMoney(extraYearNet * extraYears) }}
-            </span>
+            <span>空窗期 {{ gapYears }} 年总消耗</span>
+            <span class="amount-negative">-{{ formatMoney(gapConsumption.totalConsumption) }}</span>
           </div>
           <div class="estimate-row estimate-divider">
-            <span>每年净收入（收入-支出）</span>
-            <span :class="extraYearNet >= 0 ? 'amount-positive' : 'amount-negative'">
-              {{ formatMoney(extraYearNet) }}/年
-            </span>
+            <span>年均支出（空窗期无收入）</span>
+            <span class="amount-negative">{{ formatMoney(plansStore.annualPlanTotal) }}/年</span>
           </div>
         </div>
       </div>
@@ -169,7 +165,7 @@ import { useAssetsStore } from '../stores/assets';
 import { usePlansStore } from '../stores/plans';
 import { useExpensesStore } from '../stores/expenses';
 import { formatMoney } from '../utils/format';
-import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets, calcActualRetirementSurplus } from '../utils/calc';
+import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets, calcGapPeriodConsumption } from '../utils/calc';
 import { AccountTypeLabels } from '../types';
 import CountDown from '../components/CountDown.vue';
 import ProgressRing from '../components/ProgressRing.vue';
@@ -228,24 +224,20 @@ const retirementAssets = computed(() => {
   );
 });
 
-// 实际退休时盈余计算
-const extraYears = computed(() => {
+// 实际退休时盈余计算（空窗期消耗）
+const gapYears = computed(() => {
   if (!userStore.config) return 0;
   return Math.max(0, userStore.config.data.actualRetireAge - userStore.config.data.targetRetireAge);
 });
 
-const extraYearNet = computed(() => {
-  if (!userStore.config) return 0;
-  return userStore.config.data.annualIncome - plansStore.annualPlanTotal;
-});
-
-const actualRetirementSurplus = computed(() => {
-  if (!userStore.config || extraYears.value <= 0) return retirementAssets.value;
-  return calcActualRetirementSurplus(
+const gapConsumption = computed(() => {
+  if (!userStore.config || gapYears.value <= 0) {
+    return { remaining: retirementAssets.value, totalConsumption: 0 };
+  }
+  return calcGapPeriodConsumption(
     retirementAssets.value,
-    userStore.config.data.annualIncome,
     plansStore.annualPlanTotal,
-    extraYears.value
+    gapYears.value
   );
 });
 

@@ -73,8 +73,8 @@ export function calcYearsToRetire(birthDate: string, targetAge: number): number 
   return Math.round((diffMs / (1000 * 60 * 60 * 24 * 365.25)) * 10) / 10;
 }
 
-// 计算退休时预计资产
-// 退休时资产 = 当前总资产 + (预期年收入 × 距退休年数) - (年均计划支出 × 距退休年数)
+// 计算退休时预计资产（停止工作时）
+// = 当前总资产 + (预期年收入 × 距退休年数) - (年均计划支出 × 距退休年数)
 export function calcRetirementAssets(
   currentAssets: number,
   annualIncome: number,
@@ -85,14 +85,16 @@ export function calcRetirementAssets(
   return currentAssets + (annualIncome - annualExpense) * yearsToRetire;
 }
 
-// 计算实际退休时盈余
-// 实际退休时盈余 = 目标退休时资产 + (年收入 - 年支出) × (实际退休年龄 - 目标退休年龄)
-export function calcActualRetirementSurplus(
+// 计算空窗期消耗
+// 空窗期 = 目标退休年龄 到 实际退休年龄（领退休金）之间
+// 这段时间没有工作收入，纯靠积蓄生活
+export function calcGapPeriodConsumption(
   retirementAssets: number,
-  annualIncome: number,
   annualExpense: number,
-  extraYears: number
-): number {
-  if (extraYears <= 0) return retirementAssets;
-  return retirementAssets + (annualIncome - annualExpense) * extraYears;
+  gapYears: number
+): { remaining: number; totalConsumption: number } {
+  if (gapYears <= 0) return { remaining: retirementAssets, totalConsumption: 0 };
+  const totalConsumption = annualExpense * gapYears;
+  const remaining = retirementAssets - totalConsumption;
+  return { remaining, totalConsumption };
 }

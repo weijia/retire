@@ -34,7 +34,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">目标退休年龄</label>
-        <div class="form-hint">您计划在多少岁时停止工作、开始退休生活</div>
+        <div class="form-hint">您计划在多少岁停止工作，之后不再有工资收入</div>
         <input
           v-model.number="form.targetRetireAge"
           type="number"
@@ -44,8 +44,8 @@
         />
       </div>
       <div class="form-group">
-        <label class="form-label">实际退休年龄</label>
-        <div class="form-hint">您预计实际会在多少岁退休，通常晚于目标退休年龄。用于计算额外工作年限的资产盈余</div>
+        <label class="form-label">实际退休年龄（领退休金）</label>
+        <div class="form-hint">您可以正式领取退休金的年龄。从目标退休年龄到该年龄之间为"空窗期"，需靠积蓄生活</div>
         <input
           v-model.number="form.actualRetireAge"
           type="number"
