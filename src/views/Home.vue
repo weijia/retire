@@ -27,15 +27,28 @@
 
       <!-- 两个退休倒计时 -->
       <div class="card retire-years">
-        <div class="retire-year-item">
-          <div class="retire-year-label">距停止工作还有</div>
-          <div class="retire-year-value">{{ yearsToTargetRetire }} 年</div>
-        </div>
-        <div class="retire-year-divider"></div>
-        <div class="retire-year-item">
-          <div class="retire-year-label">距领退休金还有</div>
-          <div class="retire-year-value">{{ yearsToActualRetire }} 年</div>
-        </div>
+        <template v-if="!hasReachedTargetRetire">
+          <div class="retire-year-item">
+            <div class="retire-year-label">距停止工作还有</div>
+            <div class="retire-year-value">{{ yearsToTargetRetire }} 年</div>
+          </div>
+          <div class="retire-year-divider"></div>
+          <div class="retire-year-item">
+            <div class="retire-year-label">距领退休金还有</div>
+            <div class="retire-year-value">{{ yearsToActualRetire }} 年</div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="retire-year-item">
+            <div class="retire-year-label">您已停止工作</div>
+            <div class="retire-year-value retire-status passed">已到达</div>
+          </div>
+          <div class="retire-year-divider"></div>
+          <div class="retire-year-item">
+            <div class="retire-year-label">距领退休金还有</div>
+            <div class="retire-year-value">{{ yearsToActualRetire }} 年</div>
+          </div>
+        </template>
       </div>
 
       <!-- 退休时预计资产 -->
@@ -222,6 +235,12 @@ const yearsToRetire = computed(() => {
 const yearsToTargetRetire = computed(() => {
   if (!userStore.config) return 0;
   return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.targetRetireAge);
+});
+
+// 是否已到达目标退休年龄
+const hasReachedTargetRetire = computed(() => {
+  if (!userStore.config) return false;
+  return yearsToTargetRetire.value <= 0;
 });
 
 // 距领退休金还有多少年
@@ -455,6 +474,11 @@ onMounted(async () => {
   font-size: 24px;
   font-weight: 700;
   color: var(--primary);
+}
+
+.retire-year-value.retire-status.passed {
+  font-size: 16px;
+  color: var(--success, #52c41a);
 }
 
 .retire-year-divider {
