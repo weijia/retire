@@ -19,6 +19,7 @@ export const useUserStore = defineStore('user', () => {
           const d = config.value.data as any;
           if (d.annualIncome === undefined) d.annualIncome = 0;
           if (d.actualRetireAge === undefined) d.actualRetireAge = 65;
+          if (d.monthlyIncome === undefined) d.monthlyIncome = 0;
         }
       } else {
         config.value = null;

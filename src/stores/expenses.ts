@@ -95,6 +95,29 @@ export const useExpensesStore = defineStore('expenses', () => {
     }
   }
 
+  // 自动记录月收入
+  async function autoRecordMonthlyIncome(monthlyIncome: number) {
+    if (!monthlyIncome || monthlyIncome <= 0) return;
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10);
+    const ym = getCurrentYearMonth();
+
+    // 检查本月是否已自动记录收入
+    const incomeRecords = records.value.filter(r =>
+      r.data.description === '[自动] 月收入' &&
+      r.data.date.startsWith(ym)
+    );
+    if (incomeRecords.length > 0) return;
+
+    await addRecord({
+      date: dateStr,
+      amount: -monthlyIncome, // 负数表示收入（抵扣支出）
+      category: 'daily_other' as any,
+      description: '[自动] 月收入',
+      tags: ['自动记录', '月收入'],
+    });
+  }
+
   return {
     records,
     loading,
@@ -109,5 +132,6 @@ export const useExpensesStore = defineStore('expenses', () => {
     getById: expenseService.getById.bind(expenseService),
     autoRecordFixedExpenses,
     hasAutoRecordThisMonth,
+    autoRecordMonthlyIncome,
   };
 });

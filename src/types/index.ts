@@ -17,6 +17,7 @@ export interface UserConfig extends BaseDocument {
     actualRetireAge: number;
     gender: 'male' | 'female';
     annualIncome: number;
+    monthlyIncome: number;
   };
 }
 

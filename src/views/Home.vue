@@ -298,6 +298,10 @@ onMounted(async () => {
     if (plansStore.fixedPlans.length > 0) {
       await expensesStore.autoRecordFixedExpenses(plansStore.fixedPlans);
     }
+    // 自动记录月收入
+    if (userStore.config?.data.monthlyIncome) {
+      await expensesStore.autoRecordMonthlyIncome(userStore.config.data.monthlyIncome);
+    }
   }
 });
 </script>
