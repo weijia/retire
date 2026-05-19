@@ -285,10 +285,14 @@ const assetsAtTargetRetire = computed(() => {
 const getAnnualIncome = () => {
   const salaryAccount = assetsStore.getActiveSalaryAccount();
   if (!salaryAccount) return 0;
-  // 从描述中提取月收入，格式："月收入: 15000, 剩余工作月数: 120"
+  // 优先从 name 解析，格式："工资收入 (15000/月 x 120月)"
+  const nameMatch = salaryAccount.data.name.match(/(\d+)\/月/);
+  if (nameMatch) return parseInt(nameMatch[1]) * 12;
+  // 其次从 description 解析，格式："月收入: 15000, 剩余工作月数: 120"
   const desc = salaryAccount.data.description || '';
-  const match = desc.match(/月收入: (\d+)/);
-  return match ? parseInt(match[1]) * 12 : 0;
+  const descMatch = desc.match(/月收入: (\d+)/);
+  if (descMatch) return parseInt(descMatch[1]) * 12;
+  return 0;
 };
 
 // 每年净收支
