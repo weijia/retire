@@ -16,15 +16,23 @@ export const usePlansStore = defineStore('plans', () => {
     return plans.value.filter(p => p.data.year === year && p.data.isActive);
   });
 
-  // 月度计划总额
+  // 所有激活的计划（用于计算年均支出）
+  const allActivePlans = computed(() => {
+    return plans.value.filter(p => p.data.isActive);
+  });
+
+  // 月度计划总额（仅当年）
   const monthlyPlanTotal = computed(() =>
     currentYearPlans.value.reduce((sum, p) => sum + p.data.monthlyAmount, 0)
   );
 
-  // 年度计划总额
-  const annualPlanTotal = computed(() =>
-    currentYearPlans.value.reduce((sum, p) => sum + p.data.annualAmount, 0)
-  );
+  // 年度计划总额（所有年份平均，更适合退休规划）
+  const annualPlanTotal = computed(() => {
+    if (allActivePlans.value.length === 0) return 0;
+    // 计算所有激活计划的年支出平均值
+    const total = allActivePlans.value.reduce((sum, p) => sum + p.data.annualAmount, 0);
+    return total;
+  });
 
   // 固定支出计划（用于自动记录）
   const fixedPlans = computed(() =>
