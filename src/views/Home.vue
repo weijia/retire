@@ -258,6 +258,10 @@ onMounted(async () => {
       plansStore.loadPlans(),
       expensesStore.loadRecords(),
     ]);
+    // 自动记录固定支出
+    if (plansStore.fixedPlans.length > 0) {
+      await expensesStore.autoRecordFixedExpenses(plansStore.fixedPlans);
+    }
   }
 });
 </script>

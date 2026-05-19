@@ -85,6 +85,7 @@ export interface ExpensePlan extends BaseDocument {
     frequency: 'monthly' | 'quarterly' | 'yearly' | 'onetime';
     description?: string;
     isActive: boolean;
+    isFixed: boolean;
   };
 }
 

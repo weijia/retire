@@ -55,6 +55,14 @@
 
       <div class="form-group checkbox-group">
         <label>
+          <input type="checkbox" v-model="form.isFixed" />
+          <span>固定支出（每月自动记录到实际消费）</span>
+        </label>
+        <div class="form-hint">勾选后，系统会在每月1日自动创建该支出的实际消费记录，无需手工录入</div>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label>
           <input type="checkbox" v-model="form.isActive" />
           <span>启用此计划</span>
         </label>
@@ -92,6 +100,7 @@ const form = ref({
   frequency: 'monthly' as 'monthly' | 'quarterly' | 'yearly' | 'onetime',
   description: '',
   isActive: true,
+  isFixed: false,
 });
 
 // 标记当前正在更新的字段，防止循环触发
@@ -124,6 +133,7 @@ onMounted(async () => {
         frequency: plan.data.frequency,
         description: plan.data.description || '',
         isActive: plan.data.isActive,
+        isFixed: plan.data.isFixed || false,
       };
     }
   }

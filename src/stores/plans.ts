@@ -26,6 +26,11 @@ export const usePlansStore = defineStore('plans', () => {
     currentYearPlans.value.reduce((sum, p) => sum + p.data.annualAmount, 0)
   );
 
+  // 固定支出计划（用于自动记录）
+  const fixedPlans = computed(() =>
+    currentYearPlans.value.filter(p => p.data.isFixed)
+  );
+
   // 按类别分组
   const plansByCategory = computed(() => {
     const groups: Record<string, ExpensePlan[]> = {};
@@ -74,6 +79,7 @@ export const usePlansStore = defineStore('plans', () => {
     currentYearPlans,
     monthlyPlanTotal,
     annualPlanTotal,
+    fixedPlans,
     plansByCategory,
     loadPlans,
     addPlan,

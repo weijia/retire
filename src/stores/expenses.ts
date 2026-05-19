@@ -64,6 +64,37 @@ export const useExpensesStore = defineStore('expenses', () => {
     records.value = records.value.filter(r => r._id !== id);
   }
 
+  // 检查本月是否已自动记录某固定支出
+  async function hasAutoRecordThisMonth(planId: string): Promise<boolean> {
+    const ym = getCurrentYearMonth();
+    const planRecords = records.value.filter(r => 
+      r.data.linkedPlanId === planId && 
+      r.data.date.startsWith(ym) &&
+      r.data.description?.includes('[自动]')
+    );
+    return planRecords.length > 0;
+  }
+
+  // 自动记录固定支出
+  async function autoRecordFixedExpenses(fixedPlans: { _id: string; data: { name: string; monthlyAmount: number; category: string } }[]) {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(0, 10);
+
+    for (const plan of fixedPlans) {
+      const alreadyRecorded = await hasAutoRecordThisMonth(plan._id);
+      if (!alreadyRecorded) {
+        await addRecord({
+          date: dateStr,
+          amount: plan.data.monthlyAmount,
+          category: plan.data.category as any,
+          description: `[自动] ${plan.data.name}`,
+          linkedPlanId: plan._id,
+          tags: ['自动记录', '固定支出'],
+        });
+      }
+    }
+  }
+
   return {
     records,
     loading,
@@ -76,5 +107,7 @@ export const useExpensesStore = defineStore('expenses', () => {
     updateRecord,
     deleteRecord,
     getById: expenseService.getById.bind(expenseService),
+    autoRecordFixedExpenses,
+    hasAutoRecordThisMonth,
   };
 });
