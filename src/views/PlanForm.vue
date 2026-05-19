@@ -29,13 +29,13 @@
 
       <div class="form-group">
         <label class="form-label">年度金额（元）*</label>
-        <input v-model.number="form.annualAmount" type="number" class="form-input" placeholder="0.00" step="0.01" @input="calcMonthly" />
+        <input v-model.number="form.annualAmount" type="number" class="form-input" placeholder="0.00" step="0.01" @input="onAnnualInput" />
       </div>
 
       <div class="form-group">
         <label class="form-label">月度金额（元）</label>
-        <input v-model.number="form.monthlyAmount" type="number" class="form-input" step="0.01" />
-        <div class="form-hint">自动计算 = 年度金额 / 12</div>
+        <input v-model.number="form.monthlyAmount" type="number" class="form-input" step="0.01" @input="onMonthlyInput" />
+        <div class="form-hint">填写任一项，另一项自动计算</div>
       </div>
 
       <div class="form-group">
@@ -94,8 +94,21 @@ const form = ref({
   isActive: true,
 });
 
-function calcMonthly() {
+// 标记当前正在更新的字段，防止循环触发
+let updatingField: 'annual' | 'monthly' | null = null;
+
+function onAnnualInput() {
+  if (updatingField === 'monthly') return;
+  updatingField = 'annual';
   form.value.monthlyAmount = Math.round((form.value.annualAmount / 12) * 100) / 100;
+  setTimeout(() => { updatingField = null; }, 0);
+}
+
+function onMonthlyInput() {
+  if (updatingField === 'annual') return;
+  updatingField = 'monthly';
+  form.value.annualAmount = Math.round((form.value.monthlyAmount * 12) * 100) / 100;
+  setTimeout(() => { updatingField = null; }, 0);
 }
 
 onMounted(async () => {
