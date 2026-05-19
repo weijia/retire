@@ -86,12 +86,14 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
+import { usePlansStore } from '../stores/plans';
 
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
 
 const router = useRouter();
 const userStore = useUserStore();
+const plansStore = usePlansStore();
 
 const saving = ref(false);
 
@@ -122,8 +124,32 @@ async function save() {
   }
   saving.value = true;
   try {
+    const isFirstConfig = !userStore.config;
     await userStore.saveConfig(form.value);
     userStore.checkConfigured();
+
+    // 首次配置时，自动创建灵活就业社保支出计划
+    if (isFirstConfig) {
+      await plansStore.loadPlans();
+      const hasSocialPension = plansStore.plans.some(
+        p => p.data.category === 'social_pension' && p.data.isActive
+      );
+      if (!hasSocialPension) {
+        const year = new Date().getFullYear();
+        await plansStore.addPlan({
+          name: '灵活就业社保',
+          year,
+          category: 'social_pension',
+          annualAmount: 12000,
+          monthlyAmount: 1000,
+          frequency: 'monthly',
+          description: '灵活就业社保支出（空窗期自行缴纳）',
+          isActive: true,
+          isFixed: false,
+        });
+      }
+    }
+
     router.back();
   } finally {
     saving.value = false;
