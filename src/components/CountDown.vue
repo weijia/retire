@@ -12,6 +12,7 @@
         </div>
         <!-- 目标退休年龄调节 -->
         <div class="age-adjust" v-if="showAgeAdjust">
+          <div class="age-desc">不再工作，靠积蓄生活</div>
           <div class="age-adjust-control">
             <button class="age-btn" @click="$emit('adjustAge', -1)" :disabled="targetAge <= minAge">−</button>
             <span class="age-value">{{ targetAge }} 岁</span>
@@ -120,6 +121,12 @@ const retireYear = computed(() => calcRetireYear(props.birthYear, props.targetAg
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.age-desc {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-bottom: 4px;
 }
 
 .age-adjust-control {

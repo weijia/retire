@@ -29,12 +29,12 @@
       </div>
       <div class="form-group">
         <label class="form-label">目标退休年龄</label>
-        <div class="form-hint">您计划在多少岁停止工作，之后不再有工资收入</div>
+        <div class="form-hint">您计划在多少岁不再工作，之后不再有工资收入，靠积蓄和投资生活</div>
         <input
           v-model.number="form.targetRetireAge"
           type="number"
           class="form-input"
-          min="50"
+          min="40"
           max="70"
         />
       </div>
