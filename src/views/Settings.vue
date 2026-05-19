@@ -44,6 +44,17 @@
         />
       </div>
       <div class="form-group">
+        <label class="form-label">实际退休年龄</label>
+        <div class="form-hint">您预计实际会在多少岁退休，通常晚于目标退休年龄。用于计算额外工作年限的资产盈余</div>
+        <input
+          v-model.number="form.actualRetireAge"
+          type="number"
+          class="form-input"
+          min="50"
+          max="75"
+        />
+      </div>
+      <div class="form-group">
         <label class="form-label">预期年收入（元）</label>
         <div class="form-hint">您当前每年的税后净收入，用于估算退休时可积累的资产</div>
         <input
@@ -87,6 +98,7 @@ const form = ref({
   name: '',
   birthDate: '',
   targetRetireAge: 60,
+  actualRetireAge: 65,
   gender: 'male' as 'male' | 'female',
   annualIncome: 0,
 });

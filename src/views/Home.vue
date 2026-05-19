@@ -54,6 +54,38 @@
         </div>
       </div>
 
+      <!-- 实际退休时盈余 -->
+      <div class="card retirement-estimate" v-if="extraYears > 0">
+        <div class="card-header">
+          <span class="card-title">实际退休时盈余</span>
+          <span class="card-link" @click="$router.push('/settings')">修改参数 ›</span>
+        </div>
+        <div class="estimate-subtitle">
+          目标 {{ userStore.config!.data.targetRetireAge }} 岁 → 实际 {{ userStore.config!.data.actualRetireAge }} 岁，多工作 {{ extraYears }} 年
+        </div>
+        <div class="estimate-amount" :class="{ negative: actualRetirementSurplus < 0 }">
+          {{ formatMoney(actualRetirementSurplus) }}
+        </div>
+        <div class="estimate-detail">
+          <div class="estimate-row">
+            <span>目标退休时资产</span>
+            <span>{{ formatMoney(retirementAssets) }}</span>
+          </div>
+          <div class="estimate-row">
+            <span>额外 {{ extraYears }} 年净收入</span>
+            <span :class="extraYearNet >= 0 ? 'amount-positive' : 'amount-negative'">
+              {{ extraYearNet >= 0 ? '+' : '' }}{{ formatMoney(extraYearNet * extraYears) }}
+            </span>
+          </div>
+          <div class="estimate-row estimate-divider">
+            <span>每年净收入（收入-支出）</span>
+            <span :class="extraYearNet >= 0 ? 'amount-positive' : 'amount-negative'">
+              {{ formatMoney(extraYearNet) }}/年
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- 资产总览 -->
       <div class="card">
         <div class="card-header">
@@ -137,7 +169,7 @@ import { useAssetsStore } from '../stores/assets';
 import { usePlansStore } from '../stores/plans';
 import { useExpensesStore } from '../stores/expenses';
 import { formatMoney } from '../utils/format';
-import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets } from '../utils/calc';
+import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets, calcActualRetirementSurplus } from '../utils/calc';
 import { AccountTypeLabels } from '../types';
 import CountDown from '../components/CountDown.vue';
 import ProgressRing from '../components/ProgressRing.vue';
@@ -193,6 +225,27 @@ const retirementAssets = computed(() => {
     userStore.config.data.annualIncome,
     plansStore.annualPlanTotal,
     yearsToRetire.value
+  );
+});
+
+// 实际退休时盈余计算
+const extraYears = computed(() => {
+  if (!userStore.config) return 0;
+  return Math.max(0, userStore.config.data.actualRetireAge - userStore.config.data.targetRetireAge);
+});
+
+const extraYearNet = computed(() => {
+  if (!userStore.config) return 0;
+  return userStore.config.data.annualIncome - plansStore.annualPlanTotal;
+});
+
+const actualRetirementSurplus = computed(() => {
+  if (!userStore.config || extraYears.value <= 0) return retirementAssets.value;
+  return calcActualRetirementSurplus(
+    retirementAssets.value,
+    userStore.config.data.annualIncome,
+    plansStore.annualPlanTotal,
+    extraYears.value
   );
 });
 
@@ -350,6 +403,13 @@ onMounted(async () => {
 
 .retirement-estimate .estimate-amount.negative {
   color: var(--danger);
+}
+
+.retirement-estimate .estimate-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 4px;
 }
 
 .estimate-detail {

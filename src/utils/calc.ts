@@ -84,3 +84,15 @@ export function calcRetirementAssets(
   if (yearsToRetire <= 0) return currentAssets;
   return currentAssets + (annualIncome - annualExpense) * yearsToRetire;
 }
+
+// 计算实际退休时盈余
+// 实际退休时盈余 = 目标退休时资产 + (年收入 - 年支出) × (实际退休年龄 - 目标退休年龄)
+export function calcActualRetirementSurplus(
+  retirementAssets: number,
+  annualIncome: number,
+  annualExpense: number,
+  extraYears: number
+): number {
+  if (extraYears <= 0) return retirementAssets;
+  return retirementAssets + (annualIncome - annualExpense) * extraYears;
+}
