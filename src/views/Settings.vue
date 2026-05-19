@@ -93,6 +93,21 @@
         </label>
       </div>
     </div>
+
+    <!-- 版本信息 -->
+    <div class="card version-info">
+      <div class="card-title">关于</div>
+      <div class="version-detail">
+        <div class="version-row">
+          <span>版本</span>
+          <span>{{ versionDisplay }}</span>
+        </div>
+        <div class="version-row">
+          <span>发布时间</span>
+          <span>{{ buildTimeDisplay }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -101,6 +116,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { exportDb, importDb } from '../db';
+import { versionDisplay, buildTimeDisplay } from '../version';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -187,5 +203,26 @@ async function importData(event: Event) {
   font-size: 12px;
   color: var(--text-light);
   margin-top: 4px;
+}
+
+.version-info {
+  margin-top: 16px;
+}
+
+.version-detail {
+  padding: 8px 0;
+}
+
+.version-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.version-row span:last-child {
+  color: var(--text-primary);
+  font-family: monospace;
 }
 </style>
