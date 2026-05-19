@@ -21,22 +21,38 @@ export const usePlansStore = defineStore('plans', () => {
     return plans.value.filter(p => p.data.isActive);
   });
 
-  // 月度计划总额（仅当年）
-  const monthlyPlanTotal = computed(() =>
-    currentYearPlans.value.reduce((sum, p) => sum + p.data.monthlyAmount, 0)
-  );
-
-  // 年度计划总额（所有年份平均，更适合退休规划）
-  const annualPlanTotal = computed(() => {
-    if (allActivePlans.value.length === 0) return 0;
-    // 计算所有激活计划的年支出平均值
-    const total = allActivePlans.value.reduce((sum, p) => sum + p.data.annualAmount, 0);
-    return total;
+  // 社保类计划（只在空窗期需要自己缴纳）
+  const socialPensionPlans = computed(() => {
+    return allActivePlans.value.filter(p => p.data.category === 'social_pension');
   });
 
-  // 固定支出计划（用于自动记录）
+  // 非社保类计划（工作期间和空窗期都需要支出）
+  const nonSocialPensionPlans = computed(() => {
+    return allActivePlans.value.filter(p => p.data.category !== 'social_pension');
+  });
+
+  // 月度计划总额（仅当年，不含社保）
+  const monthlyPlanTotal = computed(() =>
+    currentYearPlans.value
+      .filter(p => p.data.category !== 'social_pension')
+      .reduce((sum, p) => sum + p.data.monthlyAmount, 0)
+  );
+
+  // 年度计划总额（不含社保，工作期间的日常支出）
+  const annualPlanTotal = computed(() => {
+    if (nonSocialPensionPlans.value.length === 0) return 0;
+    return nonSocialPensionPlans.value.reduce((sum, p) => sum + p.data.annualAmount, 0);
+  });
+
+  // 年度社保支出总额（空窗期才需要自己缴纳）
+  const annualSocialPensionTotal = computed(() => {
+    if (socialPensionPlans.value.length === 0) return 0;
+    return socialPensionPlans.value.reduce((sum, p) => sum + p.data.annualAmount, 0);
+  });
+
+  // 固定支出计划（用于自动记录，不含社保）
   const fixedPlans = computed(() =>
-    currentYearPlans.value.filter(p => p.data.isFixed)
+    currentYearPlans.value.filter(p => p.data.isFixed && p.data.category !== 'social_pension')
   );
 
   // 按类别分组
@@ -87,6 +103,7 @@ export const usePlansStore = defineStore('plans', () => {
     currentYearPlans,
     monthlyPlanTotal,
     annualPlanTotal,
+    annualSocialPensionTotal,
     fixedPlans,
     plansByCategory,
     loadPlans,

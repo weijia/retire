@@ -100,8 +100,12 @@
             <span>{{ formatMoney(assetsAtTargetRetire) }}</span>
           </div>
           <div class="estimate-row">
-            <span>空窗期 {{ gapYears }} 年消耗</span>
+            <span>空窗期 {{ gapYears }} 年日常消耗</span>
             <span class="amount-negative">-{{ formatMoney(plansStore.annualPlanTotal * gapYears) }}</span>
+          </div>
+          <div class="estimate-row" v-if="plansStore.annualSocialPensionTotal > 0">
+            <span>空窗期 {{ gapYears }} 年社保缴纳</span>
+            <span class="amount-negative">-{{ formatMoney(plansStore.annualSocialPensionTotal * gapYears) }}</span>
           </div>
           <div class="estimate-row estimate-divider">
             <span>空窗期后剩余</span>
@@ -304,19 +308,22 @@ const assetsAtTargetRetire = computed(() => {
   return nonSalaryAssets.value + futureSalaryTotal.value - futureExpenseTotal.value;
 });
 
-// 领退休金时预计资产 = 已积累 + 未来工资(到领退休金) - 未来支出(到领退休金)
+// 领退休金时预计资产 = 已积累 + 未来工资(到领退休金) - 日常支出(到领退休金) - 社保(仅空窗期)
 const retirementAssets = computed(() => {
   // 工资只发到目标退休年龄（停止工作时），之后是空窗期没有工资收入
-  // 所以未来工资收入只计算到目标退休年龄
   const salaryUntilTargetRetire = getAnnualIncome() * yearsToRetire.value;
-  // 支出一直计算到领退休金
+  // 日常支出一直计算到领退休金
   const expenseUntilActualRetire = plansStore.annualPlanTotal * yearsToActualRetire.value;
-  return nonSalaryAssets.value + salaryUntilTargetRetire - expenseUntilActualRetire;
+  // 社保只在空窗期需要自己缴纳
+  const socialPensionDuringGap = plansStore.annualSocialPensionTotal * gapYears.value;
+  return nonSalaryAssets.value + salaryUntilTargetRetire - expenseUntilActualRetire - socialPensionDuringGap;
 });
 
-// 空窗期后剩余资产
+// 空窗期后剩余资产 = 停止工作时资产 - 空窗期日常消耗 - 空窗期社保缴纳
 const assetsAfterGap = computed(() => {
-  return assetsAtTargetRetire.value - plansStore.annualPlanTotal * gapYears.value;
+  return assetsAtTargetRetire.value
+    - plansStore.annualPlanTotal * gapYears.value
+    - plansStore.annualSocialPensionTotal * gapYears.value;
 });
 
 // 实际退休时盈余计算（空窗期消耗）
