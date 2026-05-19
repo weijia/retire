@@ -80,7 +80,7 @@
           </div>
           <div class="estimate-row estimate-divider">
             <span>年均收入 / 支出</span>
-            <span>{{ formatMoney(userStore.config!.data.annualIncome) }} / {{ formatMoney(plansStore.annualPlanTotal) }}</span>
+            <span>{{ formatMoney(getAnnualIncome()) }} / {{ formatMoney(plansStore.annualPlanTotal) }}</span>
           </div>
         </div>
       </div>
@@ -281,12 +281,14 @@ const assetsAtTargetRetire = computed(() => {
   );
 });
 
-// 获取年收入（优先使用月收入x12）
+// 获取年收入（从工资收入资产计算）
 const getAnnualIncome = () => {
-  if (!userStore.config) return 0;
-  return userStore.config.data.monthlyIncome > 0 
-    ? userStore.config.data.monthlyIncome * 12 
-    : userStore.config.data.annualIncome;
+  const salaryAccount = assetsStore.getActiveSalaryAccount();
+  if (!salaryAccount) return 0;
+  // 从描述中提取月收入，格式："月收入: 15000, 剩余工作月数: 120"
+  const desc = salaryAccount.data.description || '';
+  const match = desc.match(/月收入: (\d+)/);
+  return match ? parseInt(match[1]) * 12 : 0;
 };
 
 // 每年净收支
@@ -318,10 +320,7 @@ onMounted(async () => {
     if (plansStore.fixedPlans.length > 0) {
       await expensesStore.autoRecordFixedExpenses(plansStore.fixedPlans);
     }
-    // 自动记录月收入
-    if (userStore.config?.data.monthlyIncome) {
-      await expensesStore.autoRecordMonthlyIncome(userStore.config.data.monthlyIncome);
-    }
+
   }
 });
 </script>

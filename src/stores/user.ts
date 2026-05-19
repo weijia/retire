@@ -17,9 +17,7 @@ export const useUserStore = defineStore('user', () => {
         // 兼容旧数据：补充新增字段的默认值
         if (config.value) {
           const d = config.value.data as any;
-          if (d.annualIncome === undefined) d.annualIncome = 0;
           if (d.actualRetireAge === undefined) d.actualRetireAge = 65;
-          if (d.monthlyIncome === undefined) d.monthlyIncome = 0;
         }
       } else {
         config.value = null;

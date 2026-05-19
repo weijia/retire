@@ -54,30 +54,7 @@
           max="75"
         />
       </div>
-      <div class="form-group">
-        <label class="form-label">月收入（元）</label>
-        <div class="form-hint">您每月的税后净收入，系统会每月自动记录到实际消费中</div>
-        <input
-          v-model.number="form.monthlyIncome"
-          type="number"
-          class="form-input"
-          placeholder="如：15000"
-          min="0"
-          step="100"
-        />
-      </div>
-      <div class="form-group">
-        <label class="form-label">预期年收入（元）</label>
-        <div class="form-hint">您当前每年的税后净收入，用于估算退休时可积累的资产</div>
-        <input
-          v-model.number="form.annualIncome"
-          type="number"
-          class="form-input"
-          placeholder="如：200000"
-          min="0"
-          step="1000"
-        />
-      </div>
+      <!-- 收入通过工资收入资产管理，此处不再设置 -->
       <button class="btn btn-primary btn-block" @click="save" :disabled="saving">
         {{ saving ? '保存中...' : '保存设置' }}
       </button>
@@ -115,14 +92,13 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
-import { useAssetsStore } from '../stores/assets';
-import { calcYearsToRetire } from '../utils/calc';
+
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
 
 const router = useRouter();
 const userStore = useUserStore();
-const assetsStore = useAssetsStore();
+
 const saving = ref(false);
 
 const form = ref({
@@ -131,8 +107,7 @@ const form = ref({
   targetRetireAge: 60,
   actualRetireAge: 65,
   gender: 'male' as 'male' | 'female',
-  annualIncome: 0,
-  monthlyIncome: 0,
+  // 收入通过工资收入资产管理
 });
 
 onMounted(async () => {
@@ -153,11 +128,7 @@ async function save() {
     await userStore.saveConfig(form.value);
     userStore.checkConfigured();
     
-    // 更新工资收入资产
-    const yearsToRetire = calcYearsToRetire(form.value.birthDate, form.value.targetRetireAge);
-    const monthsToRetire = Math.max(0, Math.ceil(yearsToRetire * 12));
-    await assetsStore.updateSalaryAsset(form.value.monthlyIncome, monthsToRetire);
-    
+
     router.back();
   } finally {
     saving.value = false;
