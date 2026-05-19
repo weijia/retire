@@ -52,6 +52,17 @@
         </template>
       </div>
 
+      <!-- 目标退休年龄调节 -->
+      <div class="card age-adjust">
+        <div class="age-adjust-label">目标退休年龄</div>
+        <div class="age-adjust-control">
+          <button class="age-btn" @click="adjustTargetAge(-1)" :disabled="userStore.config!.data.targetRetireAge <= 50">−</button>
+          <span class="age-value">{{ userStore.config!.data.targetRetireAge }} 岁</span>
+          <button class="age-btn" @click="adjustTargetAge(1)" :disabled="userStore.config!.data.targetRetireAge >= 70">+</button>
+        </div>
+        <div class="age-adjust-hint">点击调整退休年龄，实时预览资产变化</div>
+      </div>
+
       <!-- 退休时预计资产（实际退休/领退休金时） -->
       <div class="card retirement-estimate">
         <div class="card-header">
@@ -320,6 +331,21 @@ const gapYears = computed(() => {
   return Math.max(0, userStore.config.data.actualRetireAge - userStore.config.data.targetRetireAge);
 });
 
+// 调整目标退休年龄
+async function adjustTargetAge(delta: number) {
+  if (!userStore.config) return;
+  const newAge = userStore.config.data.targetRetireAge + delta;
+  if (newAge < 50 || newAge > 70) return;
+  if (newAge >= userStore.config.data.actualRetireAge) {
+    alert('目标退休年龄必须小于实际退休年龄（领退休金年龄）');
+    return;
+  }
+  await userStore.saveConfig({
+    ...userStore.config.data,
+    targetRetireAge: newAge,
+  });
+}
+
 onMounted(async () => {
   await userStore.loadConfig();
   userStore.checkConfigured();
@@ -550,5 +576,62 @@ onMounted(async () => {
   border-top: 1px dashed var(--border);
   padding-top: 6px;
   margin-top: 2px;
+}
+
+/* 目标退休年龄调节 */
+.age-adjust {
+  text-align: center;
+  padding: 16px;
+}
+
+.age-adjust-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.age-adjust-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.age-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary);
+  color: white;
+  font-size: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.age-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.age-btn:disabled {
+  background: var(--text-light);
+  cursor: not-allowed;
+}
+
+.age-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 80px;
+}
+
+.age-adjust-hint {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 8px;
 }
 </style>
