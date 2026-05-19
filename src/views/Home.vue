@@ -17,12 +17,24 @@
     </div>
 
     <template v-else>
+      <!-- 目标退休年龄调节 -->
+      <div class="card age-adjust">
+        <div class="age-adjust-label">目标退休年龄</div>
+        <div class="age-adjust-control">
+          <button class="age-btn" @click="adjustTargetAge(-1)" :disabled="userStore.config!.data.targetRetireAge <= 40">−</button>
+          <span class="age-value">{{ userStore.config!.data.targetRetireAge }} 岁</span>
+          <button class="age-btn" @click="adjustTargetAge(1)" :disabled="userStore.config!.data.targetRetireAge >= 70">+</button>
+        </div>
+        <div class="age-adjust-hint">点击调整退休年龄，实时预览资产变化</div>
+      </div>
+
       <!-- 倒计时 -->
-      <div class="card countdown-wrapper">
+      <div class="card countdown-wrapper compact">
         <CountDown
           :birthYear="userStore.config!.data.birthYear"
           :targetAge="hasReachedTargetRetire ? userStore.config!.data.actualRetireAge : userStore.config!.data.targetRetireAge"
           :label="hasReachedTargetRetire ? '领退休金年' : '目标退休年'"
+          compact
         />
       </div>
 
@@ -50,17 +62,6 @@
             <div class="retire-year-value">{{ yearsToActualRetire }} 年</div>
           </div>
         </template>
-      </div>
-
-      <!-- 目标退休年龄调节 -->
-      <div class="card age-adjust">
-        <div class="age-adjust-label">目标退休年龄</div>
-        <div class="age-adjust-control">
-          <button class="age-btn" @click="adjustTargetAge(-1)" :disabled="userStore.config!.data.targetRetireAge <= 50">−</button>
-          <span class="age-value">{{ userStore.config!.data.targetRetireAge }} 岁</span>
-          <button class="age-btn" @click="adjustTargetAge(1)" :disabled="userStore.config!.data.targetRetireAge >= 70">+</button>
-        </div>
-        <div class="age-adjust-hint">点击调整退休年龄，实时预览资产变化</div>
       </div>
 
       <!-- 退休时预计资产（实际退休/领退休金时） -->
@@ -335,7 +336,7 @@ const gapYears = computed(() => {
 async function adjustTargetAge(delta: number) {
   if (!userStore.config) return;
   const newAge = userStore.config.data.targetRetireAge + delta;
-  if (newAge < 50 || newAge > 70) return;
+  if (newAge < 40 || newAge > 70) return;
   if (newAge >= userStore.config.data.actualRetireAge) {
     alert('目标退休年龄必须小于实际退休年龄（领退休金年龄）');
     return;
@@ -414,6 +415,10 @@ onMounted(async () => {
 .countdown-wrapper {
   padding: 0;
   overflow: hidden;
+}
+
+.countdown-wrapper.compact {
+  padding: 8px 0;
 }
 
 .card-header {
