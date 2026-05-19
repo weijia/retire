@@ -14,6 +14,12 @@ export const useUserStore = defineStore('user', () => {
       const doc = await getDoc(DOC_ID);
       if (doc) {
         config.value = doc as UserConfig;
+        // 兼容旧数据：补充新增字段的默认值
+        if (config.value) {
+          const d = config.value.data as any;
+          if (d.annualIncome === undefined) d.annualIncome = 0;
+          if (d.actualRetireAge === undefined) d.actualRetireAge = 65;
+        }
       } else {
         config.value = null;
       }
