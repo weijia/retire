@@ -55,7 +55,7 @@
       <!-- 退休时预计资产（实际退休/领退休金时） -->
       <div class="card retirement-estimate">
         <div class="card-header">
-          <span class="card-title">退休时预计资产</span>
+          <span class="card-title">领退休金时预计资产</span>
           <span class="card-link" @click="$router.push('/settings')">修改参数 ›</span>
         </div>
         <div class="estimate-amount" :class="{ negative: retirementAssets < 0 }">
@@ -63,20 +63,16 @@
         </div>
         <div class="estimate-detail">
           <div class="estimate-row">
-            <span>当前总资产</span>
-            <span>{{ formatMoney(assetsStore.totalAssets) }}</span>
+            <span>已积累资产</span>
+            <span>{{ formatMoney(nonSalaryAssets) }}</span>
           </div>
-          <div class="estimate-row" v-if="yearsToActualRetire > 0">
-            <span>预期净收入（距退休 {{ yearsToActualRetire }} 年）</span>
-            <span :class="netPerYear >= 0 ? 'amount-positive' : 'amount-negative'">
-              {{ netPerYear >= 0 ? '+' : '' }}{{ formatMoney(netPerYear * yearsToActualRetire) }}
-            </span>
+          <div class="estimate-row">
+            <span>未来工资收入（{{ yearsToActualRetire }} 年）</span>
+            <span class="amount-positive">+{{ formatMoney(getAnnualIncome() * yearsToActualRetire) }}</span>
           </div>
-          <div class="estimate-row" v-else>
-            <span>每年净收支</span>
-            <span :class="netPerYear >= 0 ? 'amount-positive' : 'amount-negative'">
-              {{ netPerYear >= 0 ? '+' : '' }}{{ formatMoney(netPerYear) }}/年
-            </span>
+          <div class="estimate-row">
+            <span>未来支出（{{ yearsToActualRetire }} 年）</span>
+            <span class="amount-negative">-{{ formatMoney(plansStore.annualPlanTotal * yearsToActualRetire) }}</span>
           </div>
           <div class="estimate-row estimate-divider">
             <span>年均收入 / 支出</span>
@@ -114,14 +110,14 @@
       <!-- 资产总览（目标退休日时） -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">目标退休日总资产</span>
+          <span class="card-title">停止工作时总资产</span>
           <router-link to="/assets" class="card-link">查看全部 ›</router-link>
         </div>
         <div class="total-asset">
           {{ formatMoney(assetsAtTargetRetire) }}
         </div>
         <div class="asset-subtitle">
-          当前资产 {{ formatMoney(assetsStore.totalAssets) }} + 未来工资收入
+          已积累 {{ formatMoney(nonSalaryAssets) }} + 未来工资 {{ formatMoney(futureSalaryTotal) }} - 未来支出 {{ formatMoney(futureExpenseTotal) }}
         </div>
         <div class="asset-summary">
           <div
@@ -197,7 +193,7 @@ import { useAssetsStore } from '../stores/assets';
 import { usePlansStore } from '../stores/plans';
 import { useExpensesStore } from '../stores/expenses';
 import { formatMoney } from '../utils/format';
-import { calcExpenseProgress, calcYearsToRetire, calcRetirementAssets } from '../utils/calc';
+import { calcExpenseProgress, calcYearsToRetire } from '../utils/calc';
 import { AccountTypeLabels } from '../types';
 import CountDown from '../components/CountDown.vue';
 import ProgressRing from '../components/ProgressRing.vue';
@@ -259,33 +255,33 @@ const targetRetireYear = computed(() => {
   return birthYear + userStore.config.data.targetRetireAge;
 });
 
-// 退休时预计资产 = 当前资产 + (年收入-年支出) × 距实际退休年数
-const retirementAssets = computed(() => {
-  if (!userStore.config) return 0;
-  return calcRetirementAssets(
-    nonSalaryAssets.value,
-    getAnnualIncome(),
-    plansStore.annualPlanTotal,
-    yearsToActualRetire.value
-  );
-});
-
-// 距停止工作时的资产（用于计算空窗期消耗）
-const assetsAtTargetRetire = computed(() => {
-  if (!userStore.config) return 0;
-  return calcRetirementAssets(
-    nonSalaryAssets.value,
-    getAnnualIncome(),
-    plansStore.annualPlanTotal,
-    yearsToRetire.value
-  );
-});
-
-// 获取非工资收入资产总额（排除工资收入，因为工资收入已作为资产直接计入）
+// 已积累资产（排除工资收入资产）
 const nonSalaryAssets = computed(() => {
   return assetsStore.visibleAccounts
     .filter(a => a.data.accountType !== 'salary_income')
     .reduce((sum, a) => sum + a.data.balance, 0);
+});
+
+// 未来工资总收入（从工资收入资产获取，或从月收入计算）
+const futureSalaryTotal = computed(() => {
+  const salaryAccount = assetsStore.getActiveSalaryAccount();
+  if (salaryAccount) return salaryAccount.data.balance;
+  return getAnnualIncome() * yearsToRetire.value;
+});
+
+// 未来总支出（到停止工作时）
+const futureExpenseTotal = computed(() => {
+  return plansStore.annualPlanTotal * yearsToRetire.value;
+});
+
+// 停止工作时总资产 = 已积累 + 未来工资 - 未来支出
+const assetsAtTargetRetire = computed(() => {
+  return nonSalaryAssets.value + futureSalaryTotal.value - futureExpenseTotal.value;
+});
+
+// 领退休金时预计资产 = 已积累 + 未来工资(到领退休金) - 未来支出(到领退休金)
+const retirementAssets = computed(() => {
+  return nonSalaryAssets.value + getAnnualIncome() * yearsToActualRetire.value - plansStore.annualPlanTotal * yearsToActualRetire.value;
 });
 
 // 获取年收入（从工资收入资产反算月收入）
@@ -302,10 +298,7 @@ const getAnnualIncome = () => {
   return 0;
 };
 
-// 每年净收支
-const netPerYear = computed(() => {
-  return getAnnualIncome() - plansStore.annualPlanTotal;
-});
+
 
 // 空窗期后剩余资产
 const assetsAfterGap = computed(() => {
