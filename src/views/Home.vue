@@ -65,13 +65,21 @@
             <span>当前总资产</span>
             <span>{{ formatMoney(assetsStore.totalAssets) }}</span>
           </div>
-          <div class="estimate-row">
+          <div class="estimate-row" v-if="yearsToRetire > 0">
             <span>预期总收入（{{ yearsToRetire }}年）</span>
             <span class="amount-positive">+{{ formatMoney(totalIncome) }}</span>
           </div>
-          <div class="estimate-row">
+          <div class="estimate-row" v-else>
+            <span>当前年收入</span>
+            <span class="amount-positive">+{{ formatMoney(userStore.config!.data.annualIncome) }}/年</span>
+          </div>
+          <div class="estimate-row" v-if="yearsToRetire > 0">
             <span>预期总支出（{{ yearsToRetire }}年）</span>
             <span class="amount-negative">-{{ formatMoney(totalExpense) }}</span>
+          </div>
+          <div class="estimate-row" v-else>
+            <span>当前年支出</span>
+            <span class="amount-negative">-{{ formatMoney(plansStore.annualPlanTotal) }}/年</span>
           </div>
           <div class="estimate-row estimate-divider">
             <span>年均计划支出</span>
