@@ -11,11 +11,10 @@ export interface BaseDocument {
 export interface UserConfig extends BaseDocument {
   type: 'user_config';
   data: {
-    birthDate: string;
+    birthYear: number;  // 出生年份
     targetRetireAge: number;
     actualRetireAge: number;
     gender: 'male' | 'female';
-    monthlyIncome?: number;  // 月收入，用于计算未来工资收入
   };
 }
 

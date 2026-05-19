@@ -1,39 +1,26 @@
-// 计算退休日期
-export function calcRetireDate(birthDate: string, targetAge: number): Date {
-  const birth = new Date(birthDate);
-  const retire = new Date(birth);
-  retire.setFullYear(birth.getFullYear() + targetAge);
-  return retire;
+// 计算退休年份
+export function calcRetireYear(birthYear: number, targetAge: number): number {
+  return birthYear + targetAge;
 }
 
-// 计算距离退休的剩余天数
-export function calcDaysToRetire(birthDate: string, targetAge: number): number {
-  const retire = calcRetireDate(birthDate, targetAge);
+// 计算距离退休的剩余天数（假设生日在年中）
+export function calcDaysToRetire(birthYear: number, targetAge: number): number {
+  const retireYear = calcRetireYear(birthYear, targetAge);
+  // 假设生日在年中（7月1日）
+  const retireDate = new Date(retireYear, 6, 1); // 月份从0开始，6表示7月
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  retire.setHours(0, 0, 0, 0);
-  const diff = retire.getTime() - today.getTime();
+  retireDate.setHours(0, 0, 0, 0);
+  const diff = retireDate.getTime() - today.getTime();
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
-// 计算剩余年月
-export function calcYearsMonthsToRetire(birthDate: string, targetAge: number): { years: number; months: number } {
-  const retire = calcRetireDate(birthDate, targetAge);
-  const today = new Date();
-  let years = retire.getFullYear() - today.getFullYear();
-  let months = retire.getMonth() - today.getMonth();
-  if (months < 0) {
-    years--;
-    months += 12;
-  }
-  if (retire.getDate() < today.getDate()) {
-    months--;
-    if (months < 0) {
-      years--;
-      months += 12;
-    }
-  }
-  return { years: Math.max(0, years), months: Math.max(0, months) };
+// 计算剩余年数（简化版，基于年份计算）
+export function calcYearsToRetire(birthYear: number, targetAge: number): number {
+  const retireYear = calcRetireYear(birthYear, targetAge);
+  const currentYear = new Date().getFullYear();
+  const years = retireYear - currentYear;
+  return Math.max(0, years);
 }
 
 // 计算总资产
@@ -62,15 +49,6 @@ export function calcMonthlyTotal(records: { amount: number }[]): number {
 export function calcExpenseProgress(actual: number, planned: number): number {
   if (planned <= 0) return 0;
   return Math.min(100, Math.round((actual / planned) * 100));
-}
-
-// 计算距退休的精确年数（保留1位小数）
-export function calcYearsToRetire(birthDate: string, targetAge: number): number {
-  const retire = calcRetireDate(birthDate, targetAge);
-  const today = new Date();
-  const diffMs = retire.getTime() - today.getTime();
-  if (diffMs <= 0) return 0;
-  return Math.round((diffMs / (1000 * 60 * 60 * 24 * 365.25)) * 10) / 10;
 }
 
 // 计算退休时预计资产（停止工作时）

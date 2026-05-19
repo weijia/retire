@@ -5,9 +5,9 @@
       <span class="days-label">天</span>
     </div>
     <div class="countdown-info">
-      <div class="retire-date">{{ label }}：{{ retireDateStr }}</div>
-      <div class="countdown-detail" v-if="years > 0 || months > 0">
-        约 {{ years }} 年 {{ months }} 个月
+      <div class="retire-date">{{ label }}：{{ retireYear }}年</div>
+      <div class="countdown-detail" v-if="years > 0">
+        约 {{ years }} 年
       </div>
     </div>
   </div>
@@ -15,22 +15,19 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { calcDaysToRetire, calcYearsMonthsToRetire, calcRetireDate } from '../utils/calc';
+import { calcDaysToRetire, calcYearsToRetire, calcRetireYear } from '../utils/calc';
 
 const props = withDefaults(defineProps<{
-  birthDate: string;
+  birthYear: number;
   targetAge: number;
   label?: string;
 }>(), {
   label: '目标退休日',
 });
 
-const days = computed(() => calcDaysToRetire(props.birthDate, props.targetAge));
-const { years, months } = computed(() => calcYearsMonthsToRetire(props.birthDate, props.targetAge)).value;
-const retireDateStr = computed(() => {
-  const d = calcRetireDate(props.birthDate, props.targetAge);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-});
+const days = computed(() => calcDaysToRetire(props.birthYear, props.targetAge));
+const years = computed(() => calcYearsToRetire(props.birthYear, props.targetAge));
+const retireYear = computed(() => calcRetireYear(props.birthYear, props.targetAge));
 </script>
 
 <style scoped>

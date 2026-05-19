@@ -18,6 +18,10 @@ export const useUserStore = defineStore('user', () => {
         if (config.value) {
           const d = config.value.data as any;
           if (d.actualRetireAge === undefined) d.actualRetireAge = 65;
+          // 兼容旧数据：将 birthDate 转换为 birthYear
+          if (d.birthYear === undefined && d.birthDate) {
+            d.birthYear = new Date(d.birthDate).getFullYear();
+          }
         }
       } else {
         config.value = null;
@@ -61,7 +65,7 @@ export const useUserStore = defineStore('user', () => {
   function checkConfigured() {
     isConfigured.value = !!(
       config.value &&
-      config.value.data.birthDate &&
+      config.value.data.birthYear &&
       config.value.data.targetRetireAge
     );
   }

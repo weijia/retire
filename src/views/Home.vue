@@ -20,9 +20,9 @@
       <!-- 倒计时 -->
       <div class="card countdown-wrapper">
         <CountDown
-          :birthDate="userStore.config!.data.birthDate"
+          :birthYear="userStore.config!.data.birthYear"
           :targetAge="hasReachedTargetRetire ? userStore.config!.data.actualRetireAge : userStore.config!.data.targetRetireAge"
-          :label="hasReachedTargetRetire ? '领退休金日' : '目标退休日'"
+          :label="hasReachedTargetRetire ? '领退休金年' : '目标退休年'"
         />
       </div>
 
@@ -193,7 +193,7 @@ import { useAssetsStore } from '../stores/assets';
 import { usePlansStore } from '../stores/plans';
 import { useExpensesStore } from '../stores/expenses';
 import { formatMoney } from '../utils/format';
-import { calcExpenseProgress, calcYearsToRetire } from '../utils/calc';
+import { calcExpenseProgress, calcYearsToRetire, calcRetireYear } from '../utils/calc';
 import { AccountTypeLabels } from '../types';
 import CountDown from '../components/CountDown.vue';
 import ProgressRing from '../components/ProgressRing.vue';
@@ -230,13 +230,13 @@ const remaining = computed(() =>
 // 距停止工作还有多少年
 const yearsToRetire = computed(() => {
   if (!userStore.config) return 0;
-  return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.targetRetireAge);
+  return calcYearsToRetire(userStore.config.data.birthYear, userStore.config.data.targetRetireAge);
 });
 
 // 距实际退休（领退休金）还有多少年
 const yearsToActualRetire = computed(() => {
   if (!userStore.config) return 0;
-  return calcYearsToRetire(userStore.config.data.birthDate, userStore.config.data.actualRetireAge);
+  return calcYearsToRetire(userStore.config.data.birthYear, userStore.config.data.actualRetireAge);
 });
 
 // 是否已到达目标退休年龄
@@ -251,8 +251,7 @@ const currentYear = computed(() => new Date().getFullYear());
 // 目标退休年份
 const targetRetireYear = computed(() => {
   if (!userStore.config) return 0;
-  const birthYear = new Date(userStore.config.data.birthDate).getFullYear();
-  return birthYear + userStore.config.data.targetRetireAge;
+  return calcRetireYear(userStore.config.data.birthYear, userStore.config.data.targetRetireAge);
 });
 
 // 已积累资产（排除工资收入资产）
@@ -317,8 +316,6 @@ const getAnnualIncome = () => {
   return salaryAccount.data.balance;
 };
 
-
-
 // 空窗期后剩余资产
 const assetsAfterGap = computed(() => {
   return assetsAtTargetRetire.value - plansStore.annualPlanTotal * gapYears.value;
@@ -343,7 +340,6 @@ onMounted(async () => {
     if (plansStore.fixedPlans.length > 0) {
       await expensesStore.autoRecordFixedExpenses(plansStore.fixedPlans);
     }
-
   }
 });
 </script>
