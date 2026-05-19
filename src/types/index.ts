@@ -28,6 +28,7 @@ export type AccountType =
   | 'fund'
   | 'stock'
   | 'pension'
+  | 'salary_income'
   | 'other';
 
 // 账户类型中文映射
@@ -37,6 +38,7 @@ export const AccountTypeLabels: Record<AccountType, string> = {
   fund: '基金',
   stock: '股票',
   pension: '养老金账户',
+  salary_income: '工资收入',
   other: '其他',
 };
 

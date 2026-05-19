@@ -68,6 +68,40 @@ export const useAssetsStore = defineStore('assets', () => {
     accounts.value = accounts.value.filter(a => a._id !== id);
   }
 
+  // 获取活跃的工资收入资产
+  function getActiveSalaryAccount(): AssetAccount | undefined {
+    return accounts.value.find(a => 
+      a.data.accountType === 'salary_income' && !a.data.isHidden
+    );
+  }
+
+  // 停用工资收入资产
+  async function deactivateSalaryAccount() {
+    const account = getActiveSalaryAccount();
+    if (account) {
+      await updateAccount(account._id, { isHidden: true });
+    }
+  }
+
+  // 创建/更新工资收入资产
+  async function updateSalaryAsset(monthlyIncome: number, monthsToRetire: number) {
+    if (!monthlyIncome || monthlyIncome <= 0 || monthsToRetire <= 0) return;
+    
+    // 停用旧的工资收入资产
+    await deactivateSalaryAccount();
+    
+    // 创建新的工资收入资产
+    const totalIncome = monthlyIncome * monthsToRetire;
+    await addAccount({
+      name: `工资收入 (${monthlyIncome}/月 × ${monthsToRetire}月)`,
+      accountType: 'salary_income',
+      balance: totalIncome,
+      currency: 'CNY',
+      isHidden: false,
+      description: `月收入: ${monthlyIncome}, 剩余工作月数: ${monthsToRetire}`,
+    });
+  }
+
   return {
     accounts,
     loading,
@@ -80,5 +114,8 @@ export const useAssetsStore = defineStore('assets', () => {
     updateAccount,
     deleteAccount,
     getById: assetService.getById.bind(assetService),
+    getActiveSalaryAccount,
+    deactivateSalaryAccount,
+    updateSalaryAsset,
   };
 });

@@ -115,11 +115,14 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
+import { useAssetsStore } from '../stores/assets';
+import { calcYearsToRetire } from '../utils/calc';
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
 
 const router = useRouter();
 const userStore = useUserStore();
+const assetsStore = useAssetsStore();
 const saving = ref(false);
 
 const form = ref({
@@ -146,8 +149,15 @@ async function save() {
   }
   saving.value = true;
   try {
+    // 保存配置
     await userStore.saveConfig(form.value);
     userStore.checkConfigured();
+    
+    // 更新工资收入资产
+    const yearsToRetire = calcYearsToRetire(form.value.birthDate, form.value.targetRetireAge);
+    const monthsToRetire = Math.max(0, Math.ceil(yearsToRetire * 12));
+    await assetsStore.updateSalaryAsset(form.value.monthlyIncome, monthsToRetire);
+    
     router.back();
   } finally {
     saving.value = false;
