@@ -57,6 +57,7 @@ jobs:
           webdav-password: ${{ secrets.WEBDAV_PASSWORD }}
           webdav-root: online/retire
           source-directory: ./dist
+          copy-to-latest: 'true'
 
   # Deploy to GitHub Pages
   deploy-pages:
