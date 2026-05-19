@@ -254,7 +254,7 @@ const retirementAssets = computed(() => {
   if (!userStore.config) return 0;
   return calcRetirementAssets(
     assetsStore.totalAssets,
-    userStore.config.data.annualIncome,
+    getAnnualIncome(),
     plansStore.annualPlanTotal,
     yearsToActualRetire.value
   );
@@ -265,16 +265,23 @@ const assetsAtTargetRetire = computed(() => {
   if (!userStore.config) return 0;
   return calcRetirementAssets(
     assetsStore.totalAssets,
-    userStore.config.data.annualIncome,
+    getAnnualIncome(),
     plansStore.annualPlanTotal,
     yearsToRetire.value
   );
 });
 
+// 获取年收入（优先使用月收入x12）
+const getAnnualIncome = () => {
+  if (!userStore.config) return 0;
+  return userStore.config.data.monthlyIncome > 0 
+    ? userStore.config.data.monthlyIncome * 12 
+    : userStore.config.data.annualIncome;
+};
+
 // 每年净收支
 const netPerYear = computed(() => {
-  if (!userStore.config) return 0;
-  return userStore.config.data.annualIncome - plansStore.annualPlanTotal;
+  return getAnnualIncome() - plansStore.annualPlanTotal;
 });
 
 // 空窗期后剩余资产
