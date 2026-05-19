@@ -179,11 +179,11 @@ body {
 
 /* 金额样式 */
 .amount-positive {
-  color: var(--success);
+  color: var(--danger);
 }
 
 .amount-negative {
-  color: var(--danger);
+  color: var(--success);
 }
 
 /* 进度条 */
