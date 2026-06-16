@@ -10,14 +10,26 @@ export interface GiteeConfig {
 
 const GITEE_API_BASE = 'https://gitee.com/api/v5';
 
-// Base64 编码（浏览器环境）
+// Base64 编码（兼容中文和特殊字符）
 function base64Encode(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)));
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
-// Base64 解码（浏览器环境）
+// Base64 解码（兼容中文和特殊字符，处理换行/空格）
 function base64Decode(base64: string): string {
-  return decodeURIComponent(escape(atob(base64)));
+  // 移除可能的换行符和空格
+  const cleaned = base64.replace(/\s/g, '');
+  const binary = atob(cleaned);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 // 获取文件内容
