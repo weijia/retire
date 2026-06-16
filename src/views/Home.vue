@@ -31,6 +31,12 @@
         />
       </div>
 
+      <!-- 预期寿命卡片 -->
+      <LifeExpectancyCard />
+
+      <!-- 养老金卡片 -->
+      <PensionCard />
+
       <!-- 两个退休倒计时 -->
       <div class="card retire-years">
         <template v-if="!hasReachedTargetRetire">
@@ -220,6 +226,8 @@ import { AccountTypeLabels } from '../types';
 import CountDown from '../components/CountDown.vue';
 import ProgressRing from '../components/ProgressRing.vue';
 import ExpenseItem from '../components/ExpenseItem.vue';
+import LifeExpectancyCard from '../components/LifeExpectancyCard.vue';
+import PensionCard from '../components/PensionCard.vue';
 
 const userStore = useUserStore();
 const assetsStore = useAssetsStore();

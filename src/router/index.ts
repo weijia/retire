@@ -56,6 +56,48 @@ const routes = [
     name: 'Settings',
     component: () => import('../views/Settings.vue'),
   },
+  // 健康相关路由
+  {
+    path: '/health',
+    name: 'HealthProfile',
+    component: () => import('../views/HealthProfile.vue'),
+  },
+  {
+    path: '/health/daily',
+    name: 'HealthDaily',
+    component: () => import('../views/HealthDaily.vue'),
+  },
+  {
+    path: '/health/daily/add',
+    name: 'HealthDailyForm',
+    component: () => import('../views/HealthDailyForm.vue'),
+  },
+  {
+    path: '/health/result',
+    name: 'HealthResult',
+    component: () => import('../views/HealthResult.vue'),
+  },
+  // 养老金相关路由
+  {
+    path: '/pension',
+    name: 'Pension',
+    component: () => import('../views/Pension.vue'),
+  },
+  {
+    path: '/pension/records',
+    name: 'PensionRecords',
+    component: () => import('../views/PensionRecords.vue'),
+  },
+  {
+    path: '/pension/records/add',
+    name: 'PensionRecordForm',
+    component: () => import('../views/PensionRecordForm.vue'),
+  },
+  {
+    path: '/pension/records/edit/:id',
+    name: 'PensionRecordEdit',
+    component: () => import('../views/PensionRecordForm.vue'),
+  },
 ];
 
 const router = createRouter({

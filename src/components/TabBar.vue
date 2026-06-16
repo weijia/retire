@@ -35,6 +35,14 @@
           <span class="fab-menu-icon">💳</span>
           <span>记录消费</span>
         </div>
+        <div class="fab-menu-item" @click="navigateTo('/health/daily/add')">
+          <span class="fab-menu-icon">🏃</span>
+          <span>记录健康</span>
+        </div>
+        <div class="fab-menu-item" @click="navigateTo('/pension/records/add')">
+          <span class="fab-menu-icon">🏦</span>
+          <span>记录缴存</span>
+        </div>
       </div>
     </div>
   </nav>

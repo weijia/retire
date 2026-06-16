@@ -133,5 +133,161 @@ export interface ExpenseRecord extends BaseDocument {
   };
 }
 
+// ==================== 健康相关类型 ====================
+
+// 吸烟状态
+export type SmokingStatus = 'never' | 'former' | 'current';
+
+// 饮酒状态
+export type DrinkingStatus = 'never' | 'occasional' | 'regular' | 'heavy';
+
+// 饮食模式
+export type DietPattern = 'healthy' | 'average' | 'unhealthy';
+
+// 空气质量
+export type AirQuality = 'good' | 'moderate' | 'poor';
+
+// 每日记录类别
+export type DailyRecordCategory =
+  | 'smoking'
+  | 'alcohol'
+  | 'diet'
+  | 'exercise'
+  | 'sleep'
+  | 'high_calorie'
+  | 'junk_food'
+  | 'other';
+
+export const DailyRecordCategoryLabels: Record<DailyRecordCategory, string> = {
+  smoking: '吸烟',
+  alcohol: '饮酒',
+  diet: '饮食',
+  exercise: '运动',
+  sleep: '睡眠',
+  high_calorie: '高热量食物',
+  junk_food: '垃圾食品',
+  other: '其他',
+};
+
+export const DailyRecordCategoryIcons: Record<DailyRecordCategory, string> = {
+  smoking: '🚬',
+  alcohol: '🍺',
+  diet: '🥗',
+  exercise: '🏃',
+  sleep: '😴',
+  high_calorie: '🍔',
+  junk_food: '🍟',
+  other: '📝',
+};
+
+// 健康画像
+export interface HealthProfile extends BaseDocument {
+  type: 'health_profile';
+  data: {
+    smokingStatus: SmokingStatus;
+    cigarettesPerDay?: number;
+    smokingYears?: number;
+    quitSmokingYears?: number;
+    drinkingStatus: DrinkingStatus;
+    drinksPerWeek?: number;
+    dietPattern: DietPattern;
+    fruitVegServingsPerDay: number;
+    redMeatFreqPerWeek: number;
+    processedFoodFreqPerWeek: number;
+    sugarDrinkFreqPerWeek: number;
+    exerciseFreqPerWeek: number;
+    exerciseMinutesPerSession: number;
+    sedentaryHoursPerDay: number;
+    height: number;
+    weight: number;
+    sleepHoursPerDay: number;
+    stressLevel: number;
+    airQuality: AirQuality;
+    hasDiabetes: boolean;
+    hasHypertension: boolean;
+    hasHeartDisease: boolean;
+    hasStroke: boolean;
+    hasCancer: boolean;
+    familyHistoryLongevity: boolean;
+    familyHistoryHeartDisease: boolean;
+    familyHistoryCancer: boolean;
+  };
+}
+
+// 每日健康记录
+export interface HealthDailyRecord extends BaseDocument {
+  type: 'health_daily_record';
+  data: {
+    date: string;
+    category: DailyRecordCategory;
+    description: string;
+    impact: number;
+    quantity?: number;
+    calories?: number;
+    metadata?: Record<string, any>;
+  };
+}
+
+// 预期寿命快照
+export interface LifeExpectancySnapshot extends BaseDocument {
+  type: 'life_expectancy_snapshot';
+  data: {
+    date: string;
+    baselineAge: number;
+    adjustedAge: number;
+    totalAdjustmentDays: number;
+    profileAdjustmentDays: number;
+    dailyAdjustmentDays: number;
+    breakdown: {
+      factorName: string;
+      adjustmentDays: number;
+    }[];
+  };
+}
+
+// ==================== 养老金相关类型 ====================
+
+// 养老金类型
+export type PensionType = 'basic' | 'supplementary';
+
+// 养老金缴存记录
+export interface PensionRecord extends BaseDocument {
+  type: 'pension_record';
+  data: {
+    year: number;
+    monthlyBase: number;
+    personalRate: number;
+    monthlyPersonal: number;
+    employerRate: number;
+    monthlyEmployer: number;
+    monthsPaid: number;
+    totalPaid: number;
+    pensionType: PensionType;
+    description?: string;
+  };
+}
+
+// 养老金测算配置
+export interface PensionConfig extends BaseDocument {
+  type: 'pension_config';
+  data: {
+    pensionType: 'basic' | 'supplementary' | 'both';
+    currentPensionBalance: number;
+    expectedPensionGrowthRate: number;
+    averageWageGrowthRate: number;
+    retirementAge: number;
+    pensionReplaceRate: number;
+  };
+}
+
 // 所有文档类型的联合类型
-export type AppDocument = UserConfig | AssetAccount | ExpensePlan | ExpenseRecord;
+export type AppDocument =
+  | UserConfig
+  | AssetAccount
+  | ExpensePlan
+  | ExpenseRecord
+  | HealthProfile
+  | HealthDailyRecord
+  | LifeExpectancySnapshot
+  | PensionRecord
+  | PensionConfig;

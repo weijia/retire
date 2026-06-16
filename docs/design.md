@@ -13,6 +13,8 @@
 2. **资产管理** - 管理各类金融账户资产
 3. **消费计划** - 制定年度/月度消费预算计划
 4. **实际消费** - 记录日常消费支出
+5. **预期寿命评估** - 基于用户生活习惯、饮食、运动等健康因素预测预期寿命，支持每日记录动态更新
+6. **养老金测算** - 结合预期寿命与养老金缴存情况，计算退休后可领取的养老金总额及可领取年数
 
 ### 1.4 技术栈
 | 层级 | 技术选型 |
@@ -403,3 +405,631 @@ retire/
 13. 数据导出/导入功能
 14. 数据统计图表
 15. 性能优化
+
+### 阶段五：预期寿命与养老金测算（新增）
+16. 实现预期寿命评估模块（健康画像 + 每日记录 + 动态预测）
+17. 实现养老金测算模块（结合预期寿命计算养老金可领年数与总额）
+18. 首页集成预期寿命与养老金测算结果展示
+
+---
+
+## 9. 预期寿命评估模块设计（新增）
+
+### 9.1 模块概述
+
+本模块基于流行病学研究的加权评分模型，根据用户的生活习惯、饮食结构、运动情况、吸烟饮酒等健康相关因素，预测用户的预期寿命。用户可以填写初始健康画像，并支持每日追加记录生活习惯的变化（如今天抽了多少烟、吃了多少高热量食物、运动了多少等），系统会动态更新预期寿命预测。
+
+核心算法采用 **基准调整法**：
+```
+预估寿命 = 基准寿命 + Σ(因素调整值)
+```
+
+- **基准寿命**：来自 WHO/各国统计局生命表，按性别和当前年龄查表获取
+- **因素调整值**：基于大规模流行病学队列研究的相对风险度（hazard ratio）量化
+
+### 9.2 数据模型
+
+#### 9.2.1 健康画像（health_profile）
+
+用户一次性填写的长期健康基线数据，作为预期寿命计算的初始输入。
+
+```typescript
+interface HealthProfile extends BaseDocument {
+  type: 'health_profile';
+  data: {
+    // --- 吸烟 ---
+    smokingStatus: 'never' | 'former' | 'current';  // 吸烟状态
+    cigarettesPerDay?: number;                          // 每日吸烟支数（当前吸烟者）
+    smokingYears?: number;                             // 烟龄（年）
+    quitSmokingYears?: number;                          // 戒烟年数（已戒烟者）
+
+    // --- 饮酒 ---
+    drinkingStatus: 'never' | 'occasional' | 'regular' | 'heavy';  // 饮酒状态
+    drinksPerWeek?: number;                            // 每周饮酒杯数
+
+    // --- 饮食结构 ---
+    dietPattern: 'healthy' | 'average' | 'unhealthy';  // 整体饮食模式
+    fruitVegServingsPerDay: number;                     // 每日蔬果份数（0-10）
+    redMeatFreqPerWeek: number;                         // 每周红肉次数（0-14）
+    processedFoodFreqPerWeek: number;                   // 每周加工食品次数（0-14）
+    sugarDrinkFreqPerWeek: number;                      // 每周含糖饮料次数（0-14）
+
+    // --- 身体活动 ---
+    exerciseFreqPerWeek: number;                        // 每周运动次数（0-7）
+    exerciseMinutesPerSession: number;                  // 每次运动时长（分钟）
+    sedentaryHoursPerDay: number;                       // 每日久坐时长（小时）
+
+    // --- 身体指标 ---
+    height: number;                                     // 身高（cm）
+    weight: number;                                     // 体重（kg）
+    // BMI = weight / (height/100)^2，自动计算
+
+    // --- 睡眠 ---
+    sleepHoursPerDay: number;                           // 每日睡眠时长（小时）
+
+    // --- 心理与环境 ---
+    stressLevel: number;                                // 压力水平（1-10）
+    airQuality: 'good' | 'moderate' | 'poor';          // 居住地空气质量
+
+    // --- 慢性病史 ---
+    hasDiabetes: boolean;                                // 糖尿病
+    hasHypertension: boolean;                           // 高血压
+    hasHeartDisease: boolean;                            // 心脏病
+    hasStroke: boolean;                                 // 中风
+    hasCancer: boolean;                                 // 癌症
+
+    // --- 家族史 ---
+    familyHistoryLongevity: boolean;                     // 直系亲属有长寿（>85岁）
+    familyHistoryHeartDisease: boolean;                 // 家族心脏病史
+    familyHistoryCancer: boolean;                       // 家族癌症史
+  };
+}
+```
+
+**文档ID**: `health_profile_main`（单例，每个用户只有一份）
+
+#### 9.2.2 每日健康记录（health_daily_record）
+
+用户每日追加的生活习惯变化记录，用于动态微调预期寿命。
+
+```typescript
+// 每日记录条目类型
+type DailyRecordCategory =
+  | 'smoking'           // 吸烟
+  | 'alcohol'           // 饮酒
+  | 'diet'              // 饮食
+  | 'exercise'          // 运动
+  | 'sleep'            // 睡眠
+  | 'high_calorie'      // 高热量食物
+  | 'junk_food'        // 垃圾食品
+  | 'other';            // 其他
+
+interface HealthDailyRecord extends BaseDocument {
+  type: 'health_daily_record';
+  data: {
+    date: string;                    // 记录日期 YYYY-MM-DD
+    category: DailyRecordCategory;  // 记录类别
+    description: string;             // 描述（如"抽了10根烟"、"吃了炸鸡"）
+    impact: number;                  // 该条记录对寿命的影响（天），正数延长、负数缩短
+    quantity?: number;               // 数量（可选，如支数、杯数、分钟数）
+    calories?: number;               // 热量（可选，饮食类）
+    metadata?: Record<string, any>;  // 扩展元数据
+  };
+}
+```
+
+**文档ID**: `health_daily_{uuid}`
+
+**索引字段**: `data.date`, `data.category`
+
+#### 9.2.3 预期寿命快照（life_expectancy_snapshot）
+
+每次计算后保存的预期寿命快照，用于追踪变化趋势。
+
+```typescript
+interface LifeExpectancySnapshot extends BaseDocument {
+  type: 'life_expectancy_snapshot';
+  data: {
+    date: string;                  // 快照日期 YYYY-MM-DD
+    baselineAge: number;            // 基准预期寿命（岁）
+    adjustedAge: number;           // 调整后预期寿命（岁）
+    totalAdjustmentDays: number;    // 总调整天数（正/负）
+    profileAdjustmentDays: number;  // 健康画像贡献的调整天数
+    dailyAdjustmentDays: number;     // 每日记录累计贡献的调整天数
+    breakdown: {                    // 各因素调整明细
+      factorName: string;
+      adjustmentDays: number;       // 该因素贡献的调整天数
+    }[];
+  };
+}
+```
+
+**文档ID**: `le_snapshot_{date}`
+
+**索引字段**: `data.date`
+
+### 9.3 预期寿命计算模型
+
+#### 9.3.1 基准寿命获取
+
+使用内置的中国/全球生命表数据（按性别和年龄查表），数据来源参考 WHO Global Health Observatory 和中国国家统计局。
+
+```typescript
+// 生命表数据结构
+interface LifeTableEntry {
+  age: number;       // 年龄
+  male: number;       // 男性剩余预期寿命
+  female: number;     // 女性剩余预期寿命
+}
+
+// 示例：根据当前年龄和性别获取基准剩余寿命
+function getBaselineLifeExpectancy(age: number, gender: 'male' | 'female'): number;
+```
+
+#### 9.3.2 因素权重定义
+
+每个因素基于流行病学研究确定最大调整范围和评分函数：
+
+| 因素 | 最大调整 | 评分逻辑 |
+|------|---------|---------|
+| 吸烟 | -10年 | 从不吸烟: 0; 已戒烟: -0.3~0; 轻度: -0.6; 重度: -1.0 |
+| 饮酒 | -3.5年 | 不/偶尔: 0; 适量: 0; 过量: 线性递减 |
+| 饮食结构 | +2年 / -1.5年 | 健康饮食加分，高糖/高加工食品扣分 |
+| 运动 | +4.5年 | 每周≥150分钟中等强度: +1.0; 久坐>8h/天: 扣分 |
+| BMI | -4年 | 18.5-24.9: 0; 偏瘦/肥胖: 非线性扣分 |
+| 睡眠 | +1年 / -1年 | 7-8小时: 最佳; 过少/过多: 扣分 |
+| 压力 | -1年 | 长期高压(>7): 扣分 |
+| 空气质量 | -1年 | 重度污染: 扣分 |
+| 慢性病 | -3~5年 | 每种慢性病独立扣分 |
+| 家族史 | +1年 / -2年 | 长寿家族加分，疾病家族史扣分 |
+
+#### 9.3.3 计算公式
+
+```typescript
+function calculateLifeExpectancy(
+  profile: HealthProfile,
+  dailyRecords: HealthDailyRecord[],
+  currentAge: number,
+  gender: 'male' | 'female'
+): LifeExpectancyResult {
+  // 1. 获取基准寿命
+  const baseline = getBaselineLifeExpectancy(currentAge, gender);
+
+  // 2. 计算健康画像调整（长期因素）
+  const profileAdjustment = calculateProfileAdjustment(profile);
+
+  // 3. 计算每日记录累计调整（短期行为变化）
+  const dailyAdjustment = calculateDailyAdjustment(dailyRecords);
+
+  // 4. 合并结果，限制总调整不超过基准的 ±25%
+  const totalAdjustment = clampAdjustment(
+    profileAdjustment + dailyAdjustment,
+    baseline * 0.25
+  );
+
+  return {
+    baselineYears: baseline,
+    adjustedYears: baseline + totalAdjustment,
+    totalAdjustmentDays: totalAdjustment * 365,
+    profileAdjustmentDays: profileAdjustment * 365,
+    dailyAdjustmentDays: dailyAdjustment * 365,
+    breakdown: getBreakdown(profile),
+  };
+}
+```
+
+#### 9.3.4 每日记录的动态影响
+
+每日健康记录对预期寿命的影响采用 **衰减累积模型**：
+
+```
+当日影响 = 记录的即时影响值
+累计影响 = Σ(历史记录影响 × 衰减系数)
+衰减系数 = e^(-λ × 距今天数)，λ 为衰减速率
+```
+
+- 单次记录的影响随时间衰减，鼓励用户持续保持好习惯
+- 例如：今天运动30分钟 → +0.5天；连续运动30天 → 累计效果显著
+- 每日记录的影响值预定义：
+
+| 记录类别 | 具体行为 | 影响值（天） |
+|---------|---------|------------|
+| 吸烟 | 每抽1根烟 | -0.02 |
+| 饮酒 | 每多饮1杯 | -0.05 |
+| 运动 | 每30分钟中等强度 | +0.5 |
+| 高热量食物 | 每次高热量摄入 | -0.1 |
+| 垃圾食品 | 每次垃圾食品 | -0.08 |
+| 睡眠 | 睡眠不足(<6h) | -0.3 |
+| 睡眠 | 充足睡眠(7-8h) | +0.1 |
+
+### 9.4 页面与路由设计
+
+#### 新增路由
+
+| 路径 | 页面 | 说明 |
+|------|------|------|
+| `/health` | 健康画像 | 填写/编辑健康基线数据 |
+| `/health/daily` | 每日健康记录 | 每日追加生活习惯变化记录列表 |
+| `/health/daily/add` | 添加每日记录 | 快速记录今日健康行为 |
+| `/health/result` | 预期寿命结果 | 展示预期寿命预测结果与趋势 |
+
+#### 底部导航栏调整
+
+```
+[首页] [资产] [+] [计划] [记录]
+```
+
+导航栏保持不变，在 FAB 快速添加菜单中新增"记录健康"选项，首页新增预期寿命卡片入口。
+
+### 9.5 UI 设计
+
+#### 9.5.1 健康画像页布局
+
+```
+┌─────────────────────────┐
+│  ‹ 返回    健康画像      │
+├─────────────────────────┤
+│  🚬 吸烟情况             │
+│  [从不] [已戒] [当前]    │
+│  每日 ___ 支  烟龄 ___ 年│
+├─────────────────────────┤
+│  🍺 饮酒情况             │
+│  [从不] [偶尔] [经常] [大量]│
+│  每周 ___ 杯             │
+├─────────────────────────┤
+│  🥗 饮食结构             │
+│  整体: [健康] [一般] [不健康]│
+│  蔬果: ___份/天          │
+│  红肉: ___次/周          │
+│  加工食品: ___次/周       │
+│  含糖饮料: ___次/周       │
+├─────────────────────────┤
+│  🏃 身体活动             │
+│  运动: ___次/周 每次___分钟│
+│  久坐: ___小时/天        │
+├─────────────────────────┤
+│  ⚖️ 身体指标             │
+│  身高: ___cm  体重: ___kg│
+│  BMI: 22.5 (正常)        │
+├─────────────────────────┤
+│  😴 睡眠                 │
+│  每日 ___ 小时           │
+├─────────────────────────┤
+│  🧠 心理与环境           │
+│  压力: 1[====|====]10    │
+│  空气: [好] [中] [差]    │
+├─────────────────────────┤
+│  🏥 慢性病史             │
+│  □ 糖尿病 □ 高血压       │
+│  □ 心脏病 □ 中风 □ 癌症  │
+├─────────────────────────┤
+│  👨‍👩‍👧 家族史              │
+│  □ 长寿家族 □ 心脏病      │
+│  □ 癌症家族史            │
+├─────────────────────────┤
+│  [保存健康画像]           │
+└─────────────────────────┘
+```
+
+#### 9.5.2 每日健康记录页布局
+
+```
+┌─────────────────────────┐
+│  ‹ 返回    每日健康记录 [+添加] │
+├─────────────────────────┤
+│  📊 本周影响概览         │
+│  运动 +2.5天  吸烟 -0.6天 │
+│  饮食 -0.3天  睡眠 +0.7天 │
+│  本周净影响: +2.3天 🟢   │
+├─────────────────────────┤
+│  📅 2026-06-16 今天      │
+│  🏃 跑步30分钟     +0.5天 │
+│  🚬 抽了5根烟      -0.1天 │
+│  🍔 吃了汉堡        -0.1天 │
+├─────────────────────────┤
+│  📅 2026-06-15 昨天      │
+│  🏃 游泳45分钟     +0.8天 │
+│  😴 睡了5小时       -0.3天 │
+├─────────────────────────┤
+│  📅 2026-06-14           │
+│  🚬 抽了10根烟     -0.2天 │
+│  🍺 喝了3杯酒      -0.15天│
+└─────────────────────────┘
+```
+
+#### 9.5.3 预期寿命结果页布局
+
+```
+┌─────────────────────────┐
+│  ‹ 返回    预期寿命评估   │
+├─────────────────────────┤
+│     🎂                   │
+│  预期寿命                │
+│  82.3 岁                │
+│  基准 76.1 + 调整 +6.2年 │
+├─────────────────────────┤
+│  📊 因素影响分析         │
+│  ┌─────────────────────┐│
+│  │ 🏃 运动    +4.2年  ││
+│  │ 🥗 饮食    +1.8年  ││
+│  │ 😴 睡眠    +0.8年  ││
+│  │ 👨‍👩‍👧 家族    +0.5年  ││
+│  │ 🚬 吸烟    -3.2年  ││
+│  │ ⚖️ BMI     -1.0年  ││
+│  │ 🍺 饮酒    -0.5年  ││
+│  │ 📅 每日记录 +0.6年  ││
+│  └─────────────────────┘│
+├─────────────────────────┤
+│  📈 寿命变化趋势         │
+│  [折线图：近30天/90天预期寿命变化]│
+├─────────────────────────┤
+│  💡 改善建议             │
+│  • 戒烟可延长寿命约3年   │
+│  • 每周多运动60分钟...   │
+│  • 减少加工食品摄入...   │
+└─────────────────────────┘
+```
+
+#### 9.5.4 首页新增卡片
+
+在首页仪表盘中新增预期寿命卡片：
+
+```
+┌─────────────────────────┐
+│  预期寿命        详情 ›  │
+│  82.3 岁 (+6.2年)       │
+│  今日: 运动+0.5天 🟢    │
+└─────────────────────────┘
+```
+
+---
+
+## 10. 养老金测算模块设计（新增）
+
+### 10.1 模块概述
+
+结合用户的预期寿命预测结果和养老金缴存情况，计算退休后可领取的养老金总额、每月可领取金额、可领取年数等关键指标。帮助用户更科学地规划退休生活。
+
+### 10.2 数据模型
+
+#### 10.2.1 养老金缴存记录（pension_record）
+
+```typescript
+interface PensionRecord extends BaseDocument {
+  type: 'pension_record';
+  data: {
+    year: number;                     // 缴费年份
+    monthlyBase: number;             // 月缴费基数（元）
+    personalRate: number;             // 个人缴费比例（%，默认8%）
+    monthlyPersonal: number;         // 月个人缴费额（元）
+    employerRate: number;             // 单位缴费比例（%，默认16%）
+    monthlyEmployer: number;          // 月单位缴费额（元）
+    monthsPaid: number;               // 当年实际缴费月数
+    totalPaid: number;                // 当年总缴费额（元）
+    pensionType: 'basic' | 'supplementary';  // 养老金类型
+    description?: string;             // 备注
+  };
+}
+```
+
+**文档ID**: `pension_{uuid}`
+
+**索引字段**: `data.year`, `data.pensionType`
+
+#### 10.2.2 养老金测算配置（pension_config）
+
+```typescript
+interface PensionConfig extends BaseDocument {
+  type: 'pension_config';
+  data: {
+    pensionType: 'basic' | 'supplementary' | 'both';  // 参保类型
+    currentPensionBalance: number;                       // 当前养老金个人账户余额（元）
+    expectedPensionGrowthRate: number;                  // 养老金投资年化收益率（%，默认3%）
+    averageWageGrowthRate: number;                       // 社平工资年增长率（%，默认5%）
+    retirementAge: number;                               // 法定退休年龄
+    pensionReplaceRate: number;                          // 养老金替代率（%，默认45%）
+  };
+}
+```
+
+**文档ID**: `pension_config_main`（单例）
+
+### 10.3 养老金计算模型
+
+#### 10.3.1 基本养老金计算公式
+
+参考中国现行养老保险制度：
+
+```
+月养老金 = 基础养老金 + 个人账户养老金
+
+基础养老金 = 退休时上年度社平工资 × (1 + 本人平均缴费工资指数) / 2 × 累计缴费年限 × 1%
+
+个人账户养老金 = 个人账户储存额 / 计发月数
+
+计发月数（根据退休年龄）:
+  50岁: 195, 55岁: 170, 60岁: 139, 65岁: 101
+```
+
+#### 10.3.2 养老金可领年数计算
+
+```
+预期寿命 = 预期寿命模块计算结果
+法定退休年龄 = 用户配置的 actualRetireAge
+可领取年数 = 预期寿命 - 法定退休年龄
+可领取总月数 = 可领取年数 × 12
+养老金总额 = 月养老金 × 可领取总月数
+```
+
+#### 10.3.3 资产充足性分析
+
+```
+退休时总资产 = 已有资产 + 未来收入 - 未来支出（来自现有模块）
+养老金总额 = 月养老金 × 可领取月数
+退休后总可用 = 退休时总资产 + 养老金总额
+年均可用 = 退休后总可用 / 可领取年数
+月均可用 = 年均可用 / 12
+是否充足 = 月均可用 >= 退休后月均支出
+```
+
+### 10.4 页面与路由设计
+
+#### 新增路由
+
+| 路径 | 页面 | 说明 |
+|------|------|------|
+| `/pension` | 养老金测算 | 养老金配置与测算结果展示 |
+| `/pension/records` | 缴存记录 | 养老金缴存记录列表 |
+| `/pension/records/add` | 添加缴存记录 | 新增/编辑缴存记录 |
+
+### 10.5 UI 设计
+
+#### 10.5.1 养老金测算页布局
+
+```
+┌─────────────────────────┐
+│  ‹ 返回    养老金测算    │
+├─────────────────────────┤
+│  📋 测算参数             │
+│  当前个人账户余额: ¥XX,XXX│
+│  投资年化收益率: 3%      │
+│  社平工资增长率: 5%      │
+│  [修改参数]              │
+├─────────────────────────┤
+│  💰 测算结果             │
+│                         │
+│  预期寿命: 82.3 岁       │
+│  退休年龄: 65 岁         │
+│  可领取年数: 17.3 年     │
+│  ─────────────────────  │
+│  月养老金: ¥3,XXX        │
+│  年养老金: ¥XX,XXX       │
+│  养老金总额: ¥XXX,XXX    │
+├─────────────────────────┤
+│  📊 资产充足性分析        │
+│  退休时总资产: ¥XXX,XXX  │
+│  + 养老金总额: ¥XXX,XXX  │
+│  = 总可用: ¥XXX,XXX      │
+│  月均可用: ¥X,XXX        │
+│  月均支出: ¥X,XXX        │
+│  ─────────────────────  │
+│  ✅ 资产充足 / ❌ 资金缺口│
+│  缺口: ¥XXX,XXX          │
+├─────────────────────────┤
+│  📈 养老金趋势图         │
+│  [折线图：资产变化趋势]   │
+├─────────────────────────┤
+│  [查看缴存记录]          │
+└─────────────────────────┘
+```
+
+#### 10.5.2 首页新增养老金卡片
+
+在首页仪表盘中新增养老金测算卡片：
+
+```
+┌─────────────────────────┐
+│  养老金测算       详情 ›  │
+│  月领 ¥3,XXX 共17.3年    │
+│  总额 ¥XXX,XXX           │
+└─────────────────────────┘
+```
+
+---
+
+## 11. 新增文件清单
+
+### 11.1 数据层
+
+| 文件 | 说明 |
+|------|------|
+| `src/stores/health.ts` | 健康画像与每日记录 Store |
+| `src/stores/pension.ts` | 养老金 Store |
+| `src/utils/lifeExpectancy.ts` | 预期寿命计算引擎（基准寿命表 + 因素权重 + 评分函数） |
+| `src/utils/pensionCalc.ts` | 养老金计算工具 |
+
+### 11.2 视图层
+
+| 文件 | 说明 |
+|------|------|
+| `src/views/HealthProfile.vue` | 健康画像页面（填写/编辑基线数据） |
+| `src/views/HealthDaily.vue` | 每日健康记录列表页 |
+| `src/views/HealthDailyForm.vue` | 添加/编辑每日健康记录表单 |
+| `src/views/HealthResult.vue` | 预期寿命结果展示页 |
+| `src/views/Pension.vue` | 养老金测算页 |
+| `src/views/PensionRecords.vue` | 养老金缴存记录列表页 |
+| `src/views/PensionRecordForm.vue` | 添加/编辑缴存记录表单 |
+
+### 11.3 组件层
+
+| 文件 | 说明 |
+|------|------|
+| `src/components/LifeExpectancyCard.vue` | 首页预期寿命卡片组件 |
+| `src/components/PensionCard.vue` | 首页养老金卡片组件 |
+| `src/components/HealthTrendChart.vue` | 寿命变化趋势图组件 |
+| `src/components/FactorBreakdown.vue` | 因素影响分析组件 |
+
+### 11.4 类型定义更新
+
+在 `src/types/index.ts` 中新增：
+- `HealthProfile` 接口
+- `HealthDailyRecord` 接口
+- `DailyRecordCategory` 类型
+- `LifeExpectancySnapshot` 接口
+- `PensionRecord` 接口
+- `PensionConfig` 接口
+
+### 11.5 数据库升级
+
+IndexedDB 版本从 1 升级到 2，新增索引：
+- `data_date` (复用于 health_daily_record)
+- `data_category` (复用于 health_daily_record)
+- `data_year` (复用于 pension_record)
+
+### 11.6 路由更新
+
+在 `src/router/index.ts` 中新增 7 条路由。
+
+### 11.7 导航更新
+
+- `TabBar.vue` FAB 菜单新增"记录健康"选项
+- `TabBar.vue` FAB 菜单新增"记录缴存"选项
+
+---
+
+## 12. 数据流设计
+
+```
+用户填写健康画像
+       │
+       ▼
+  ┌─────────┐     ┌──────────────┐
+  │HealthProfile│───→│ 预期寿命引擎  │
+  └─────────┘     │ lifeExpectancy│
+       │          │   .ts         │
+       │          └──────┬───────┘
+       │                 │
+用户每日记录 ─────────→  │
+(HealthDailyRecord)     │
+       │                 ▼
+       │          ┌──────────┐
+       │          │ 调整后寿命 │
+       │          └────┬─────┘
+       │               │
+       ▼               ▼
+  ┌──────────┐   ┌──────────┐
+  │ 快照存储  │   │ 首页展示  │
+  │ Snapshot │   │ 趋势图   │
+  └──────────┘   └────┬─────┘
+                       │
+                       ▼
+                ┌──────────────┐
+                │ 养老金测算引擎 │
+                │ pensionCalc  │
+                │    .ts       │
+                └──────┬───────┘
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+     月养老金      可领取年数     资产充足性
+```

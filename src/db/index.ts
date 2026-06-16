@@ -1,7 +1,7 @@
 import { openDB, type IDBPDatabase } from 'idb';
 
 const DB_NAME = 'retire_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'documents';
 
 let dbInstance: IDBPDatabase | null = null;
@@ -11,7 +11,7 @@ async function getDb(): Promise<IDBPDatabase> {
   if (dbInstance) return dbInstance;
 
   dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: '_id' });
         store.createIndex('type', 'type', { unique: false });
@@ -20,6 +20,15 @@ async function getDb(): Promise<IDBPDatabase> {
         store.createIndex('data_year', 'data.year', { unique: false });
         store.createIndex('data_category', 'data.category', { unique: false });
         store.createIndex('data_date', 'data.date', { unique: false });
+      } else if (oldVersion < 2) {
+        // v1 -> v2: 确保索引已创建（兼容已有数据库）
+        const store = db.transaction(STORE_NAME, 'versionchange').objectStore(STORE_NAME);
+        if (!store.indexNames.contains('type')) store.createIndex('type', 'type', { unique: false });
+        if (!store.indexNames.contains('createdAt')) store.createIndex('createdAt', 'createdAt', { unique: false });
+        if (!store.indexNames.contains('data_accountType')) store.createIndex('data_accountType', 'data.accountType', { unique: false });
+        if (!store.indexNames.contains('data_year')) store.createIndex('data_year', 'data.year', { unique: false });
+        if (!store.indexNames.contains('data_category')) store.createIndex('data_category', 'data.category', { unique: false });
+        if (!store.indexNames.contains('data_date')) store.createIndex('data_date', 'data.date', { unique: false });
       }
     },
   });
