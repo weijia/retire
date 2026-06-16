@@ -86,6 +86,17 @@
         </div>
       </div>
 
+      <!-- 调试信息 -->
+      <div class="card" style="background:#f5f5f5; font-size:12px;">
+        <div class="card-title">调试</div>
+        <div style="padding:8px; color:#666;">
+          <div>工资资产: {{ assetsStore.accounts.filter(a=>a.data.accountType==='salary_income').length }} 个</div>
+          <div>可见工资: {{ assetsStore.visibleAccounts.filter(a=>a.data.accountType==='salary_income').length }} 个</div>
+          <div>年收入: {{ getAnnualIncome() }}</div>
+          <div>剩余年: {{ yearsToRetire }}</div>
+        </div>
+      </div>
+
       <!-- 空窗期消耗 -->
       <div class="card retirement-estimate" v-if="gapYears > 0 && !hasReachedTargetRetire">
         <div class="card-header">
