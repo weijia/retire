@@ -14,6 +14,7 @@
 import { ref, onMounted } from 'vue'
 
 const show = ref(false)
+let updateAvailable = false // 去重标志，确保只通知一次
 
 onMounted(() => {
   if (!('serviceWorker' in navigator)) return
@@ -24,10 +25,13 @@ onMounted(() => {
       if (!newWorker) return
 
       newWorker.addEventListener('statechange', () => {
-        // 新 Worker 已安装且等待中
+        // 新 Worker 已安装且等待中，只通知一次
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          console.log('[PWA] 新版本可用')
-          show.value = true
+          if (!updateAvailable) {
+            updateAvailable = true
+            console.log('[PWA] 新版本可用')
+            show.value = true
+          }
         }
       })
     })
