@@ -21,7 +21,8 @@ function base64Encode(str: string): string {
 }
 
 // Base64 解码（兼容中文和特殊字符，处理换行/空格）
-function base64Decode(base64: string): string {
+function base64Decode(base64: string | undefined): string {
+  if (!base64) return '';
   // 移除可能的换行符和空格
   const cleaned = base64.replace(/\s/g, '');
   const binary = atob(cleaned);

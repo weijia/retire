@@ -326,7 +326,6 @@ async function syncToGitee() {
     syncStatus.value = { type: 'error', message: `上传失败: ${e.message}` };
   } finally {
     syncing.value = false;
-    setTimeout(() => { syncStatus.value = null; }, 5000);
   }
 }
 
