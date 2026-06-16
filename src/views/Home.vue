@@ -90,6 +90,8 @@
       <div class="card" style="background:#f5f5f5; font-size:12px;">
         <div class="card-title">调试</div>
         <div style="padding:8px; color:#666;">
+          <div>总资产数: {{ assetsStore.accounts.length }} 个</div>
+          <div>资产类型: {{ assetsStore.accounts.map(a=>a.data.accountType).join(', ') }}</div>
           <div>工资资产: {{ assetsStore.accounts.filter(a=>a.data.accountType==='salary_income').length }} 个</div>
           <div>可见工资: {{ assetsStore.visibleAccounts.filter(a=>a.data.accountType==='salary_income').length }} 个</div>
           <div>年收入: {{ getAnnualIncome() }}</div>
