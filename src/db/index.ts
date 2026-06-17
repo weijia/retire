@@ -1,40 +1,56 @@
 import { openDB, type IDBPDatabase } from 'idb';
 
 const DB_NAME = 'retire_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'documents';
 
 let dbInstance: IDBPDatabase | null = null;
+let dbOpening = false;
 
 // 获取/创建数据库
 async function getDb(): Promise<IDBPDatabase> {
   if (dbInstance) return dbInstance;
+  if (dbOpening) {
+    // 等待其他调用完成
+    await new Promise(r => setTimeout(r, 100));
+    return getDb();
+  }
 
-  dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, _newVersion, transaction) {
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: '_id' });
-        store.createIndex('type', 'type', { unique: false });
-        store.createIndex('createdAt', 'createdAt', { unique: false });
-        store.createIndex('data_accountType', 'data.accountType', { unique: false });
-        store.createIndex('data_year', 'data.year', { unique: false });
-        store.createIndex('data_category', 'data.category', { unique: false });
-        store.createIndex('data_date', 'data.date', { unique: false });
-      } else if (oldVersion < 2) {
-        // v1 -> v2: 使用 upgrade 回调提供的 transaction 参数获取 objectStore
-        // 不能在 upgrade 回调中调用 db.transaction() 创建新事务
-        const store = transaction.objectStore(STORE_NAME);
-        if (!store.indexNames.contains('type')) store.createIndex('type', 'type', { unique: false });
-        if (!store.indexNames.contains('createdAt')) store.createIndex('createdAt', 'createdAt', { unique: false });
-        if (!store.indexNames.contains('data_accountType')) store.createIndex('data_accountType', 'data.accountType', { unique: false });
-        if (!store.indexNames.contains('data_year')) store.createIndex('data_year', 'data.year', { unique: false });
-        if (!store.indexNames.contains('data_category')) store.createIndex('data_category', 'data.category', { unique: false });
-        if (!store.indexNames.contains('data_date')) store.createIndex('data_date', 'data.date', { unique: false });
-      }
-    },
-  });
-
-  return dbInstance;
+  dbOpening = true;
+  try {
+    dbInstance = await openDB(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion, _newVersion, transaction) {
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          const store = db.createObjectStore(STORE_NAME, { keyPath: '_id' });
+          store.createIndex('type', 'type', { unique: false });
+          store.createIndex('createdAt', 'createdAt', { unique: false });
+          store.createIndex('data_accountType', 'data.accountType', { unique: false });
+          store.createIndex('data_year', 'data.year', { unique: false });
+          store.createIndex('data_category', 'data.category', { unique: false });
+          store.createIndex('data_date', 'data.date', { unique: false });
+        } else if (oldVersion < 2) {
+          // v1 -> v2: 使用 upgrade 回调提供的 transaction 参数获取 objectStore
+          const store = transaction.objectStore(STORE_NAME);
+          if (!store.indexNames.contains('type')) store.createIndex('type', 'type', { unique: false });
+          if (!store.indexNames.contains('createdAt')) store.createIndex('createdAt', 'createdAt', { unique: false });
+          if (!store.indexNames.contains('data_accountType')) store.createIndex('data_accountType', 'data.accountType', { unique: false });
+          if (!store.indexNames.contains('data_year')) store.createIndex('data_year', 'data.year', { unique: false });
+          if (!store.indexNames.contains('data_category')) store.createIndex('data_category', 'data.category', { unique: false });
+          if (!store.indexNames.contains('data_date')) store.createIndex('data_date', 'data.date', { unique: false });
+        }
+        // v2 -> v3: 数据库已修复，无需结构变更
+      },
+      blocked() {
+        console.warn('IndexedDB 升级被阻止，请关闭其他标签页后刷新');
+      },
+      blocking() {
+        console.warn('IndexedDB 升级阻塞中...');
+      },
+    });
+    return dbInstance;
+  } finally {
+    dbOpening = false;
+  }
 }
 
 // 获取数据库信息
