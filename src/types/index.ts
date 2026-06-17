@@ -255,13 +255,14 @@ export interface PensionRecord extends BaseDocument {
   type: 'pension_record';
   data: {
     year: number;
-    monthlyBase: number;
-    personalRate: number;
-    monthlyPersonal: number;
-    employerRate: number;
-    monthlyEmployer: number;
-    monthsPaid: number;
-    totalPaid: number;
+    monthlyBase: number;           // 月缴费基数
+    avgWage: number;               // 当年社平工资（元/月）
+    personalRate: number;          // 个人缴费比例（%）
+    monthlyPersonal: number;       // 月个人缴费额
+    employerRate: number;          // 单位缴费比例（%）
+    monthlyEmployer: number;       // 月单位缴费额
+    monthsPaid: number;            // 当年缴费月数
+    totalPaid: number;             // 当年总缴费额
     pensionType: PensionType;
     description?: string;
   };
@@ -272,11 +273,13 @@ export interface PensionConfig extends BaseDocument {
   type: 'pension_config';
   data: {
     pensionType: 'basic' | 'supplementary' | 'both';
-    currentPensionBalance: number;
-    expectedPensionGrowthRate: number;
-    averageWageGrowthRate: number;
-    retirementAge: number;
-    pensionReplaceRate: number;
+    currentPensionBalance: number;     // 当前个人账户余额（元）
+    retirementAge: number;             // 法定退休年龄
+    // 过渡性养老金参数（针对1996年前参加工作的"中人"）
+    hasTransitionalPension: boolean;   // 是否有视同缴费年限
+    deemedYears: number;               // 视同缴费年限（年）
+    deemedIndex: number;               // 视同缴费指数
+    transitionalRate: number;          // 过渡系数（通常1.0%-1.4%）
   };
 }
 

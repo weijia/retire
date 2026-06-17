@@ -29,16 +29,12 @@
             <span>{{ formatMoney(pensionConfig.currentPensionBalance) }}</span>
           </div>
           <div class="config-row">
-            <span>投资年化收益率</span>
-            <span>{{ pensionConfig.expectedPensionGrowthRate }}%</span>
-          </div>
-          <div class="config-row">
-            <span>社平工资增长率</span>
-            <span>{{ pensionConfig.averageWageGrowthRate }}%</span>
-          </div>
-          <div class="config-row">
             <span>法定退休年龄</span>
             <span>{{ pensionConfig.retirementAge }}岁</span>
+          </div>
+          <div v-if="pensionConfig.hasTransitionalPension" class="config-row">
+            <span>视同缴费年限</span>
+            <span>{{ pensionConfig.deemedYears }}年</span>
           </div>
         </div>
       </div>
@@ -67,8 +63,74 @@
           <div class="result-amount">{{ formatMoney(pensionResult!.monthlyPension) }}<span class="result-unit">/月</span></div>
           <div class="result-sub">年养老金 {{ formatMoney(pensionResult!.annualPension) }}</div>
         </div>
+        <div class="result-breakdown">
+          <div class="breakdown-row">
+            <span>基础养老金</span>
+            <span>{{ formatMoney(pensionResult!.basicPension) }}</span>
+          </div>
+          <div class="breakdown-row">
+            <span>个人账户养老金</span>
+            <span>{{ formatMoney(pensionResult!.personalPension) }}</span>
+          </div>
+          <div v-if="pensionResult!.transitionalPension > 0" class="breakdown-row">
+            <span>过渡性养老金</span>
+            <span>{{ formatMoney(pensionResult!.transitionalPension) }}</span>
+          </div>
+        </div>
         <div class="result-total">
           养老金总额: {{ formatMoney(pensionResult!.totalPension) }}
+        </div>
+      </div>
+
+      <!-- 计算明细 -->
+      <div v-if="hasResult && pensionResult" class="card">
+        <div class="card-title">&#128202; 计算明细</div>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">退休时社平工资</span>
+            <span class="detail-value">{{ formatMoney(pensionResult!.retirementAvgWage) }}/月</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">平均缴费指数</span>
+            <span class="detail-value">{{ pensionResult!.averageWageIndex }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">实际缴费年限</span>
+            <span class="detail-value">{{ pensionResult!.totalYearsPaid }}年</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">总缴费年限</span>
+            <span class="detail-value">{{ pensionResult!.totalYears }}年</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">个人账户余额</span>
+            <span class="detail-value">{{ formatMoney(pensionResult!.personalAccountBalance) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">计发月数</span>
+            <span class="detail-value">{{ getPayoutMonths(pensionConfig.retirementAge) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 历年缴费明细 -->
+      <div v-if="hasResult && pensionResult && pensionResult!.yearlyDetails.length > 0" class="card">
+        <div class="card-title">&#128220; 历年缴费明细</div>
+        <div class="yearly-table">
+          <div class="table-header">
+            <span>年份</span>
+            <span>缴费基数</span>
+            <span>社平工资</span>
+            <span>缴费指数</span>
+            <span>个人账户</span>
+          </div>
+          <div v-for="row in pensionResult!.yearlyDetails" :key="row.year" class="table-row">
+            <span>{{ row.year }}</span>
+            <span>{{ formatMoney(row.monthlyBase) }}</span>
+            <span>{{ formatMoney(row.avgWage) }}</span>
+            <span>{{ row.wageIndex }}</span>
+            <span>{{ formatMoney(row.accountBalanceEOY) }}</span>
+          </div>
         </div>
       </div>
 
@@ -138,16 +200,26 @@
             <input v-model.number="editConfig.currentPensionBalance" type="number" class="form-input" min="0" />
           </div>
           <div class="form-group">
-            <label class="form-label">投资年化收益率（%）</label>
-            <input v-model.number="editConfig.expectedPensionGrowthRate" type="number" class="form-input" min="0" max="20" step="0.1" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">社平工资增长率（%）</label>
-            <input v-model.number="editConfig.averageWageGrowthRate" type="number" class="form-input" min="0" max="20" step="0.1" />
-          </div>
-          <div class="form-group">
             <label class="form-label">法定退休年龄</label>
             <input v-model.number="editConfig.retirementAge" type="number" class="form-input" min="50" max="70" />
+          </div>
+          <div class="form-group">
+            <label class="checkbox-item">
+              <input type="checkbox" v-model="editConfig.hasTransitionalPension" />
+              <span>有视同缴费年限（1996年前参加工作）</span>
+            </label>
+          </div>
+          <div v-if="editConfig.hasTransitionalPension" class="form-group">
+            <label class="form-label">视同缴费年限（年）</label>
+            <input v-model.number="editConfig.deemedYears" type="number" class="form-input" min="0" max="40" />
+          </div>
+          <div v-if="editConfig.hasTransitionalPension" class="form-group">
+            <label class="form-label">视同缴费指数</label>
+            <input v-model.number="editConfig.deemedIndex" type="number" class="form-input" min="0.6" max="3" step="0.1" />
+          </div>
+          <div v-if="editConfig.hasTransitionalPension" class="form-group">
+            <label class="form-label">过渡系数（%）</label>
+            <input v-model.number="editConfig.transitionalRate" type="number" class="form-input" min="1" max="1.4" step="0.1" />
           </div>
         </div>
         <div class="modal-footer">
@@ -165,6 +237,7 @@ import { useHealthStore } from '../stores/health';
 import { usePensionStore } from '../stores/pension';
 import { usePlansStore } from '../stores/plans';
 import { formatMoney } from '../utils/format';
+import { getPayoutMonths } from '../utils/pensionCalc';
 import type { PensionCalculationResult, SufficiencyResult } from '../utils/pensionCalc';
 
 const userStore = useUserStore();
@@ -179,10 +252,11 @@ const sufficiency = ref<SufficiencyResult | null>(null);
 const pensionConfig = ref({
   pensionType: 'basic' as 'basic' | 'supplementary' | 'both',
   currentPensionBalance: 0,
-  expectedPensionGrowthRate: 3,
-  averageWageGrowthRate: 5,
-  retirementAge: 65,
-  pensionReplaceRate: 45,
+  retirementAge: 60,
+  hasTransitionalPension: false,
+  deemedYears: 0,
+  deemedIndex: 1.0,
+  transitionalRate: 1.3,
 });
 
 const editConfig = ref({ ...pensionConfig.value });
@@ -212,11 +286,8 @@ function calcPension() {
     new Date().getFullYear()
   );
 
-  // 计算充足性
-  // 简化：使用当前总资产作为退休时资产
-  // 实际应该从 Home.vue 的计算逻辑中获取
   sufficiency.value = pensionStore.computeSufficiency(
-    0, // 这里需要传入实际的退休时总资产
+    0,
     pensionResult.value,
     plansStore.annualPlanTotal
   );
@@ -373,10 +444,74 @@ onMounted(async () => {
   margin-top: 4px;
 }
 
+.result-breakdown {
+  margin: 12px 0;
+  padding: 12px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 8px;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
 .result-total {
   text-align: center;
   font-size: 14px;
   opacity: 0.9;
+  margin-top: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+
+.detail-label {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.detail-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.yearly-table {
+  font-size: 12px;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1.2fr 0.8fr 1.2fr;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1.2fr 0.8fr 1.2fr;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
 }
 
 .sufficiency-detail {
@@ -510,5 +645,18 @@ onMounted(async () => {
   font-size: 15px;
   background: var(--card-bg);
   color: var(--text-primary);
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.checkbox-item input {
+  width: 18px;
+  height: 18px;
 }
 </style>

@@ -2,54 +2,77 @@ import type { PensionRecord, PensionConfig } from '../types';
 
 /**
  * 计发月数（根据退休年龄）
+ * 来源：国务院关于完善企业职工基本养老保险制度的决定（国发〔2005〕38号）
  */
 const payoutMonths: Record<number, number> = {
-  50: 195,
-  51: 190,
-  52: 185,
-  53: 180,
-  54: 175,
-  55: 170,
-  56: 164,
-  57: 158,
-  58: 152,
-  59: 145,
-  60: 139,
-  61: 132,
-  62: 125,
-  63: 117,
-  64: 109,
-  65: 101,
-  66: 93,
-  67: 84,
-  68: 75,
-  69: 65,
-  70: 56,
+  40: 233, 41: 230, 42: 226, 43: 223, 44: 220, 45: 216,
+  46: 212, 47: 208, 48: 204, 49: 199, 50: 195, 51: 190,
+  52: 185, 53: 180, 54: 175, 55: 170, 56: 164, 57: 158,
+  58: 152, 59: 145, 60: 139, 61: 132, 62: 125, 63: 117,
+  64: 109, 65: 101, 66: 93, 67: 84, 68: 75, 69: 65, 70: 56,
+};
+
+/**
+ * 历年个人账户记账利率（简化版，实际应按人社部每年公布值）
+ * 2016年后由人社部统一公布，此前按银行定期存款利率
+ */
+const historicalInterestRates: Record<number, number> = {
+  2010: 2.25, 2011: 3.25, 2012: 3.25, 2013: 3.25, 2014: 3.25,
+  2015: 3.25, 2016: 8.31, 2017: 7.12, 2018: 8.29, 2019: 7.61,
+  2020: 6.04, 2021: 6.69, 2022: 6.12, 2023: 3.97, 2024: 3.5,
+  2025: 3.5, 2026: 3.5,
 };
 
 /**
  * 获取计发月数
  */
 export function getPayoutMonths(retirementAge: number): number {
-  return payoutMonths[retirementAge] || 139;
+  const clamped = Math.max(40, Math.min(70, Math.round(retirementAge)));
+  return payoutMonths[clamped] || 139;
+}
+
+/**
+ * 获取某年度记账利率
+ */
+function getInterestRate(year: number): number {
+  return historicalInterestRates[year] ?? 3.0;
 }
 
 /**
  * 养老金测算结果
  */
 export interface PensionCalculationResult {
-  monthlyPension: number;
-  annualPension: number;
-  totalPension: number;
-  yearsReceivable: number;
-  monthsReceivable: number;
-  basicPension: number;
-  personalPension: number;
-  totalPersonalContribution: number;
-  totalEmployerContribution: number;
-  totalYearsPaid: number;
-  averageMonthlyBase: number;
-  averageWageIndex: number;
+  monthlyPension: number;           // 月养老金总额
+  annualPension: number;            // 年养老金
+  totalPension: number;             // 养老金总额（到预期寿命）
+  yearsReceivable: number;          // 可领取年数
+  monthsReceivable: number;         // 可领取月数
+
+  // 分项
+  basicPension: number;             // 基础养老金
+  personalPension: number;          // 个人账户养老金
+  transitionalPension: number;      // 过渡性养老金
+
+  // 明细
+  totalYearsPaid: number;           // 累计实际缴费年限
+  totalDeemedYears: number;         // 视同缴费年限
+  totalYears: number;               // 总缴费年限（实际+视同）
+  averageWageIndex: number;         // 平均缴费工资指数
+  personalAccountBalance: number;   // 退休时个人账户余额
+  retirementAvgWage: number;        // 退休时上年度社平工资
+
+  // 历年明细
+  yearlyDetails: YearlyDetail[];
+}
+
+export interface YearlyDetail {
+  year: number;
+  monthlyBase: number;
+  avgWage: number;
+  wageIndex: number;
+  monthsPaid: number;
+  personalContribution: number;
+  accountBalanceEOY: number;
 }
 
 /**
@@ -67,71 +90,141 @@ export interface SufficiencyResult {
 }
 
 /**
- * 计算养老金
- * @param records 养老金缴存记录
- * @param config 养老金配置
- * @param currentAge 当前年龄
- * @param lifeExpectancy 预期寿命
- * @param currentYear 当前年份
+ * 精确计算养老金
+ *
+ * 计算公式依据：《国务院关于完善企业职工基本养老保险制度的决定》（国发〔2005〕38号）
+ *
+ * 月养老金 = 基础养老金 + 个人账户养老金 + 过渡性养老金
+ *
+ * 1. 基础养老金 = 退休时上年度社平工资 × (1 + 平均缴费指数) / 2 × 缴费年限 × 1%
+ * 2. 个人账户养老金 = 退休时个人账户储存额 / 计发月数
+ * 3. 过渡性养老金 = 退休时上年度社平工资 × 视同缴费指数 × 视同缴费年限 × 过渡系数
  */
 export function calculatePension(
   records: PensionRecord[],
   config: PensionConfig | null,
   currentAge: number,
   lifeExpectancy: number,
-  _currentYear: number
+  currentYear: number
 ): PensionCalculationResult {
   const cfg = config?.data || {
     pensionType: 'basic' as const,
     currentPensionBalance: 0,
-    expectedPensionGrowthRate: 3,
-    averageWageGrowthRate: 5,
-    retirementAge: 65,
-    pensionReplaceRate: 45,
+    retirementAge: 60,
+    hasTransitionalPension: false,
+    deemedYears: 0,
+    deemedIndex: 1.0,
+    transitionalRate: 1.3,
   };
 
   const retirementAge = cfg.retirementAge;
-  const yearsToRetire = Math.max(0, retirementAge - currentAge);
+  const retirementYear = currentYear + (retirementAge - currentAge);
 
-  // 计算累计缴费年限和平均缴费基数
+  // ========== 第一步：逐年计算个人账户累积 ==========
+
+  // 按年份排序
+  const sortedRecords = [...records].sort((a, b) => a.data.year - b.data.year);
+
+  let accountBalance = cfg.currentPensionBalance;
   let totalYearsPaid = 0;
-  let totalPersonalContribution = cfg.currentPensionBalance;
-  let totalEmployerContribution = 0;
   let totalMonthsPaid = 0;
-  let weightedBaseSum = 0;
+  let weightedIndexSum = 0;
+  const yearlyDetails: YearlyDetail[] = [];
 
-  for (const record of records) {
+  for (const record of sortedRecords) {
     const d = record.data;
+    const year = d.year;
+
+    // 当年的缴费指数 = 缴费基数 / 社平工资
+    const wageIndex = d.avgWage > 0 ? d.monthlyBase / d.avgWage : 1.0;
+
+    // 当年个人缴费总额
+    const personalContribution = d.monthlyPersonal * d.monthsPaid;
+
+    // 计入个人账户（当年缴费在年底一次性计入，然后计算利息）
+    accountBalance += personalContribution;
+
+    // 当年利息（按年底余额计算年度利息）
+    const interestRate = getInterestRate(year) / 100;
+    const interest = accountBalance * interestRate;
+    accountBalance += interest;
+
+    // 累计统计
     totalYearsPaid += d.monthsPaid / 12;
-    totalPersonalContribution += d.monthlyPersonal * d.monthsPaid;
-    totalEmployerContribution += d.monthlyEmployer * d.monthsPaid;
     totalMonthsPaid += d.monthsPaid;
-    weightedBaseSum += d.monthlyBase * d.monthsPaid;
+    weightedIndexSum += wageIndex * d.monthsPaid;
+
+    yearlyDetails.push({
+      year,
+      monthlyBase: d.monthlyBase,
+      avgWage: d.avgWage,
+      wageIndex: Math.round(wageIndex * 100) / 100,
+      monthsPaid: d.monthsPaid,
+      personalContribution,
+      accountBalanceEOY: Math.round(accountBalance),
+    });
   }
 
-  const averageMonthlyBase = totalMonthsPaid > 0 ? weightedBaseSum / totalMonthsPaid : 0;
+  // ========== 第二步：计算到退休时的个人账户增长 ==========
 
-  // 假设社平工资增长率，推算退休时社平工资
-  const currentAvgWage = 8000; // 当前社平工资假设值（元/月）
-  const avgWageGrowthRate = cfg.averageWageGrowthRate / 100;
-  const retirementAvgWage = currentAvgWage * Math.pow(1 + avgWageGrowthRate, yearsToRetire);
+  // 如果还有到退休前的年份，按假设利率继续增长
+  const lastRecordYear = sortedRecords.length > 0
+    ? sortedRecords[sortedRecords.length - 1].data.year
+    : currentYear;
 
-  // 平均缴费工资指数
-  const averageWageIndex = averageMonthlyBase > 0 ? averageMonthlyBase / currentAvgWage : 1;
+  for (let y = lastRecordYear + 1; y < retirementYear; y++) {
+    const interestRate = getInterestRate(y) / 100;
+    accountBalance += accountBalance * interestRate;
+  }
 
-  // 个人账户增长
-  const growthRate = cfg.expectedPensionGrowthRate / 100;
-  const personalAccountBalance = totalPersonalContribution * Math.pow(1 + growthRate, yearsToRetire);
+  // ========== 第三步：计算平均缴费指数 ==========
 
-  // 基础养老金
-  const basicPension = retirementAvgWage * (1 + averageWageIndex) / 2 * totalYearsPaid * 0.01;
+  const averageWageIndex = totalMonthsPaid > 0
+    ? weightedIndexSum / totalMonthsPaid
+    : 1.0;
 
-  // 个人账户养老金
+  // ========== 第四步：计算退休时社平工资 ==========
+
+  // 取最后一条记录的社平工资作为基准，或默认 8000
+  const lastAvgWage = sortedRecords.length > 0
+    ? sortedRecords[sortedRecords.length - 1].data.avgWage
+    : 8000;
+
+  // 推算到退休时的社平工资（按最近几年的平均增长率）
+  const recentYears = sortedRecords.slice(-3);
+  let avgGrowthRate = 0.05; // 默认 5%
+  if (recentYears.length >= 2) {
+    const growthRates = [];
+    for (let i = 1; i < recentYears.length; i++) {
+      const prev = recentYears[i - 1].data.avgWage;
+      const curr = recentYears[i].data.avgWage;
+      if (prev > 0) growthRates.push((curr - prev) / prev);
+    }
+    if (growthRates.length > 0) {
+      avgGrowthRate = growthRates.reduce((a, b) => a + b, 0) / growthRates.length;
+    }
+  }
+
+  const retirementAvgWage = lastAvgWage * Math.pow(1 + avgGrowthRate, retirementYear - lastRecordYear);
+
+  // ========== 第五步：计算各项养老金 ==========
+
+  // 1. 基础养老金
+  const totalYears = totalYearsPaid + cfg.deemedYears;
+  const basicPension = retirementAvgWage * (1 + averageWageIndex) / 2 * totalYears * 0.01;
+
+  // 2. 个人账户养老金
   const payoutM = getPayoutMonths(retirementAge);
-  const personalPension = personalAccountBalance / payoutM;
+  const personalPension = accountBalance / payoutM;
+
+  // 3. 过渡性养老金（中人）
+  let transitionalPension = 0;
+  if (cfg.hasTransitionalPension && cfg.deemedYears > 0) {
+    transitionalPension = retirementAvgWage * cfg.deemedIndex * cfg.deemedYears * (cfg.transitionalRate / 100);
+  }
 
   // 月养老金总额
-  const monthlyPension = basicPension + personalPension;
+  const monthlyPension = basicPension + personalPension + transitionalPension;
   const annualPension = monthlyPension * 12;
 
   // 可领取年数
@@ -149,19 +242,19 @@ export function calculatePension(
     monthsReceivable: Math.round(monthsReceivable),
     basicPension: Math.round(basicPension),
     personalPension: Math.round(personalPension),
-    totalPersonalContribution: Math.round(totalPersonalContribution),
-    totalEmployerContribution: Math.round(totalEmployerContribution),
+    transitionalPension: Math.round(transitionalPension),
     totalYearsPaid: Math.round(totalYearsPaid * 10) / 10,
-    averageMonthlyBase: Math.round(averageMonthlyBase),
+    totalDeemedYears: cfg.deemedYears,
+    totalYears: Math.round(totalYears * 10) / 10,
     averageWageIndex: Math.round(averageWageIndex * 100) / 100,
+    personalAccountBalance: Math.round(accountBalance),
+    retirementAvgWage: Math.round(retirementAvgWage),
+    yearlyDetails,
   };
 }
 
 /**
  * 计算资产充足性
- * @param retirementAssets 退休时总资产
- * @param pensionResult 养老金测算结果
- * @param annualExpense 年支出
  */
 export function calculateSufficiency(
   retirementAssets: number,

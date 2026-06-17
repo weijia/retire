@@ -26,9 +26,15 @@
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">月缴费基数（元）</label>
-        <input v-model.number="form.monthlyBase" type="number" class="form-input" min="0" />
+      <div class="form-row">
+        <div class="form-group half">
+          <label class="form-label">月缴费基数（元）</label>
+          <input v-model.number="form.monthlyBase" type="number" class="form-input" min="0" />
+        </div>
+        <div class="form-group half">
+          <label class="form-label">当年社平工资（元/月）</label>
+          <input v-model.number="form.avgWage" type="number" class="form-input" min="0" />
+        </div>
       </div>
 
       <div class="form-row">
@@ -93,6 +99,7 @@ const form = ref({
   year: new Date().getFullYear(),
   pensionType: 'basic' as 'basic' | 'supplementary',
   monthlyBase: 8000,
+  avgWage: 8000,
   personalRate: 8,
   employerRate: 16,
   monthsPaid: 12,
@@ -116,17 +123,18 @@ onMounted(async () => {
     await pensionStore.loadRecords();
     const record = pensionStore.records.find(r => r._id === recordId.value);
     if (record) {
-      const d = record.data;
-      form.value = {
-        year: d.year,
-        pensionType: d.pensionType,
-        monthlyBase: d.monthlyBase,
-        personalRate: d.personalRate,
-        employerRate: d.employerRate,
-        monthsPaid: d.monthsPaid,
-        description: d.description || '',
-      };
-    }
+        const d = record.data;
+        form.value = {
+          year: d.year,
+          pensionType: d.pensionType,
+          monthlyBase: d.monthlyBase,
+          avgWage: d.avgWage || 8000,
+          personalRate: d.personalRate,
+          employerRate: d.employerRate,
+          monthsPaid: d.monthsPaid,
+          description: d.description || '',
+        };
+      }
   }
 });
 
