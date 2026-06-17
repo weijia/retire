@@ -280,6 +280,18 @@ export interface PensionConfig extends BaseDocument {
   };
 }
 
+// Gitee 同步配置
+export interface GiteeSyncConfig extends BaseDocument {
+  type: 'gitee_sync_config';
+  data: {
+    token: string;
+    owner: string;
+    repo: string;
+    branch: string;
+    filePath: string;
+  };
+}
+
 // 所有文档类型的联合类型
 export type AppDocument =
   | UserConfig
@@ -290,4 +302,5 @@ export type AppDocument =
   | HealthDailyRecord
   | LifeExpectancySnapshot
   | PensionRecord
-  | PensionConfig;
+  | PensionConfig
+  | GiteeSyncConfig;

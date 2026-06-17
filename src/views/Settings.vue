@@ -163,9 +163,10 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { usePlansStore } from '../stores/plans';
-import { exportDb, importDb } from '../db';
+import { exportDb, importDb, putDoc, getDoc } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
 import { loadFromGitee, saveToGitee, type GiteeConfig } from '../utils/giteeSync';
+import type { GiteeSyncConfig } from '../types';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -190,7 +191,7 @@ const giteeConfig = ref({
   filePath: 'retire-config.json',
 });
 
-const GITEE_CONFIG_KEY = 'gitee_sync_config';
+const GITEE_CONFIG_DOC_ID = 'gitee_sync_config_main';
 
 const isGiteeConfigured = computed(() => {
   return giteeConfig.value.token && giteeConfig.value.owner && giteeConfig.value.repo;
@@ -207,15 +208,28 @@ onMounted(async () => {
       gender: data.gender,
     };
   }
-  
-  // 加载 Gitee 配置
-  const savedGiteeConfig = localStorage.getItem(GITEE_CONFIG_KEY);
-  if (savedGiteeConfig) {
-    try {
-      giteeConfig.value = { ...giteeConfig.value, ...JSON.parse(savedGiteeConfig) };
-    } catch (e) {}
-  }
+
+  // 从 IndexedDB 加载 Gitee 配置
+  await loadGiteeConfigFromDb();
 });
+
+// 从 IndexedDB 加载 Gitee 配置
+async function loadGiteeConfigFromDb() {
+  try {
+    const doc = await getDoc(GITEE_CONFIG_DOC_ID) as GiteeSyncConfig | undefined;
+    if (doc) {
+      giteeConfig.value = {
+        token: doc.data.token,
+        owner: doc.data.owner,
+        repo: doc.data.repo,
+        branch: doc.data.branch || 'master',
+        filePath: doc.data.filePath || 'retire-config.json',
+      };
+    }
+  } catch {
+    // 无配置
+  }
+}
 
 async function save() {
   if (!form.value.birthYear) {
@@ -290,10 +304,24 @@ async function importData(event: Event) {
   }
 }
 
-// 保存 Gitee 配置到 localStorage
-function saveGiteeConfig() {
-  localStorage.setItem(GITEE_CONFIG_KEY, JSON.stringify(giteeConfig.value));
-  syncStatus.value = { type: 'success', message: 'Gitee 配置已保存' };
+// 保存 Gitee 配置到 IndexedDB
+async function saveGiteeConfig() {
+  const now = new Date().toISOString();
+  const doc: GiteeSyncConfig = {
+    _id: GITEE_CONFIG_DOC_ID,
+    type: 'gitee_sync_config',
+    createdAt: now,
+    updatedAt: now,
+    data: {
+      token: giteeConfig.value.token,
+      owner: giteeConfig.value.owner,
+      repo: giteeConfig.value.repo,
+      branch: giteeConfig.value.branch || 'master',
+      filePath: giteeConfig.value.filePath || 'retire-config.json',
+    },
+  };
+  await putDoc(doc);
+  syncStatus.value = { type: 'success', message: 'Gitee 配置已保存到本地' };
   setTimeout(() => { syncStatus.value = null; }, 3000);
 }
 
