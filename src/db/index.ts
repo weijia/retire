@@ -11,7 +11,7 @@ async function getDb(): Promise<IDBPDatabase> {
   if (dbInstance) return dbInstance;
 
   dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion) {
+    upgrade(db, oldVersion, _newVersion, transaction) {
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         const store = db.createObjectStore(STORE_NAME, { keyPath: '_id' });
         store.createIndex('type', 'type', { unique: false });
@@ -21,8 +21,9 @@ async function getDb(): Promise<IDBPDatabase> {
         store.createIndex('data_category', 'data.category', { unique: false });
         store.createIndex('data_date', 'data.date', { unique: false });
       } else if (oldVersion < 2) {
-        // v1 -> v2: 确保索引已创建（兼容已有数据库）
-        const store = db.transaction(STORE_NAME, 'versionchange').objectStore(STORE_NAME);
+        // v1 -> v2: 使用 upgrade 回调提供的 transaction 参数获取 objectStore
+        // 不能在 upgrade 回调中调用 db.transaction() 创建新事务
+        const store = transaction.objectStore(STORE_NAME);
         if (!store.indexNames.contains('type')) store.createIndex('type', 'type', { unique: false });
         if (!store.indexNames.contains('createdAt')) store.createIndex('createdAt', 'createdAt', { unique: false });
         if (!store.indexNames.contains('data_accountType')) store.createIndex('data_accountType', 'data.accountType', { unique: false });
