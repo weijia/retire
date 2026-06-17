@@ -155,8 +155,8 @@ export const useHealthStore = defineStore('health', () => {
       updatedAt: now,
       data: {
         date: today,
-        baselineAge: result.baselineYears,
-        adjustedAge: result.adjustedYears,
+        baselineAge: result.baselineTotalAge,
+        adjustedAge: result.adjustedTotalAge,
         totalAdjustmentDays: result.totalAdjustmentDays,
         profileAdjustmentDays: result.profileAdjustmentDays,
         dailyAdjustmentDays: result.dailyAdjustmentDays,

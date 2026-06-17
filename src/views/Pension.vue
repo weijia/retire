@@ -198,7 +198,7 @@ const lifeExpectancy = computed(() => {
     currentAge.value,
     userStore.config.data.gender
   );
-  return result.adjustedYears + currentAge.value;
+  return result.adjustedTotalAge;
 });
 
 const hasResult = computed(() => !!pensionResult.value);

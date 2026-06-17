@@ -30,9 +30,9 @@
       <div class="card result-card">
         <div class="result-icon">&#127874;</div>
         <div class="result-label">预期寿命</div>
-        <div class="result-value">{{ result.adjustedYears }} <span class="result-unit">岁</span></div>
+        <div class="result-value">{{ result.adjustedTotalAge }} <span class="result-unit">岁</span></div>
         <div class="result-detail">
-          基准 {{ result.baselineYears }} + 调整 {{ result.totalAdjustmentDays >= 0 ? '+' : '' }}{{ (result.totalAdjustmentDays / 365).toFixed(1) }}年
+          基准 {{ result.baselineTotalAge }} + 调整 {{ result.totalAdjustmentDays >= 0 ? '+' : '' }}{{ (result.totalAdjustmentDays / 365).toFixed(1) }}年
         </div>
       </div>
 
@@ -103,6 +103,8 @@ const healthStore = useHealthStore();
 const result = ref<LifeExpectancyResult>({
   baselineYears: 0,
   adjustedYears: 0,
+  baselineTotalAge: 0,
+  adjustedTotalAge: 0,
   totalAdjustmentDays: 0,
   profileAdjustmentDays: 0,
   dailyAdjustmentDays: 0,

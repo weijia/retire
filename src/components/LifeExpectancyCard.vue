@@ -9,7 +9,7 @@
     </div>
     <div v-else class="le-content">
       <div class="le-main">
-        <span class="le-age">{{ result.adjustedYears }}</span>
+        <span class="le-age">{{ result.adjustedTotalAge }}</span>
         <span class="le-unit">岁</span>
         <span class="le-delta" :class="result.totalAdjustmentDays >= 0 ? 'positive' : 'negative'">
           {{ result.totalAdjustmentDays >= 0 ? '+' : '' }}{{ (result.totalAdjustmentDays / 365).toFixed(1) }}年
@@ -37,6 +37,8 @@ const healthStore = useHealthStore();
 const result = ref<LifeExpectancyResult>({
   baselineYears: 0,
   adjustedYears: 0,
+  baselineTotalAge: 0,
+  adjustedTotalAge: 0,
   totalAdjustmentDays: 0,
   profileAdjustmentDays: 0,
   dailyAdjustmentDays: 0,

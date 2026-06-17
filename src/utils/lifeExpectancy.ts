@@ -252,8 +252,10 @@ function clampAdjustment(adjustment: number, maxAbs: number): number {
 // ==================== 计算结果接口 ====================
 
 export interface LifeExpectancyResult {
-  baselineYears: number;
-  adjustedYears: number;
+  baselineYears: number;        // 基准剩余寿命（年）
+  adjustedYears: number;        // 调整后剩余寿命（年）
+  baselineTotalAge: number;     // 基准总预期寿命 = 当前年龄 + 基准剩余寿命
+  adjustedTotalAge: number;     // 调整后总预期寿命 = 当前年龄 + 调整后剩余寿命
   totalAdjustmentDays: number;
   profileAdjustmentDays: number;
   dailyAdjustmentDays: number;
@@ -310,6 +312,8 @@ export function calculateLifeExpectancy(
   return {
     baselineYears: Math.round(baseline * 10) / 10,
     adjustedYears: Math.round((baseline + totalAdjustment) * 10) / 10,
+    baselineTotalAge: Math.round((currentAge + baseline) * 10) / 10,
+    adjustedTotalAge: Math.round((currentAge + baseline + totalAdjustment) * 10) / 10,
     totalAdjustmentDays: Math.round(totalAdjustment * 365 * 10) / 10,
     profileAdjustmentDays: Math.round(profileAdjustment * 365 * 10) / 10,
     dailyAdjustmentDays: Math.round(dailyAdjustment * 365 * 10) / 10,
