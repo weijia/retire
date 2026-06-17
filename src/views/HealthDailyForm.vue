@@ -60,7 +60,7 @@
 
     <!-- 快速记录模板 -->
     <div class="card">
-      <div class="card-title">&#9889; 快速记录</div>
+      <div class="card-title">⚡ 快速记录</div>
       <div class="quick-actions">
         <button
           v-for="action in quickActions"
@@ -87,27 +87,27 @@ const healthStore = useHealthStore();
 const saving = ref(false);
 
 const categories = [
-  { value: 'exercise', label: '运动', icon: '&#127939;' },
-  { value: 'smoking', label: '吸烟', icon: '&#128684;' },
-  { value: 'alcohol', label: '饮酒', icon: '&#127866;' },
-  { value: 'high_calorie', label: '高热量', icon: '&#127828;' },
-  { value: 'junk_food', label: '垃圾食品', icon: '&#127839;' },
-  { value: 'diet', label: '饮食', icon: '&#129367;' },
-  { value: 'sleep', label: '睡眠', icon: '&#128164;' },
-  { value: 'other', label: '其他', icon: '&#128221;' },
+  { value: 'exercise', label: '运动', icon: '🏃' },
+  { value: 'smoking', label: '吸烟', icon: '🚬' },
+  { value: 'alcohol', label: '饮酒', icon: '🍺' },
+  { value: 'high_calorie', label: '高热量', icon: '🍔' },
+  { value: 'junk_food', label: '垃圾食品', icon: '🍟' },
+  { value: 'diet', label: '饮食', icon: '🥗' },
+  { value: 'sleep', label: '睡眠', icon: '😴' },
+  { value: 'other', label: '其他', icon: '📝' },
 ];
 
 const quickActions = [
-  { icon: '&#127939;', label: '跑步30分钟', category: 'exercise', description: '跑步30分钟', quantity: 30 },
-  { icon: '&#127939;', label: '游泳45分钟', category: 'exercise', description: '游泳45分钟', quantity: 45 },
-  { icon: '&#127939;', label: '散步60分钟', category: 'exercise', description: '散步60分钟', quantity: 60 },
-  { icon: '&#128684;', label: '抽了5根烟', category: 'smoking', description: '抽了5根烟', quantity: 5 },
-  { icon: '&#128684;', label: '抽了1包烟', category: 'smoking', description: '抽了1包烟', quantity: 20 },
-  { icon: '&#127866;', label: '喝了2杯酒', category: 'alcohol', description: '喝了2杯酒', quantity: 2 },
-  { icon: '&#127828;', label: '吃了炸鸡', category: 'high_calorie', description: '吃了炸鸡', quantity: 1 },
-  { icon: '&#127839;', label: '吃了薯条', category: 'junk_food', description: '吃了薯条', quantity: 1 },
-  { icon: '&#128164;', label: '睡了8小时', category: 'sleep', description: '睡了8小时', quantity: 8 },
-  { icon: '&#128164;', label: '只睡5小时', category: 'sleep', description: '只睡5小时', quantity: 5 },
+  { icon: '🏃', label: '跑步30分钟', category: 'exercise', description: '跑步30分钟', quantity: 30 },
+  { icon: '🏊', label: '游泳45分钟', category: 'exercise', description: '游泳45分钟', quantity: 45 },
+  { icon: '🚶', label: '散步60分钟', category: 'exercise', description: '散步60分钟', quantity: 60 },
+  { icon: '🚬', label: '抽了5根烟', category: 'smoking', description: '抽了5根烟', quantity: 5 },
+  { icon: '🚬', label: '抽了1包烟', category: 'smoking', description: '抽了1包烟', quantity: 20 },
+  { icon: '🍺', label: '喝了2杯酒', category: 'alcohol', description: '喝了2杯酒', quantity: 2 },
+  { icon: '🍗', label: '吃了炸鸡', category: 'high_calorie', description: '吃了炸鸡', quantity: 1 },
+  { icon: '🍟', label: '吃了薯条', category: 'junk_food', description: '吃了薯条', quantity: 1 },
+  { icon: '😴', label: '睡了8小时', category: 'sleep', description: '睡了8小时', quantity: 8 },
+  { icon: '😴', label: '只睡5小时', category: 'sleep', description: '只睡5小时', quantity: 5 },
 ];
 
 type DailyCat = 'exercise' | 'smoking' | 'alcohol' | 'high_calorie' | 'junk_food' | 'diet' | 'sleep' | 'other';

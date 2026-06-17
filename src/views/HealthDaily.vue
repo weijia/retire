@@ -8,7 +8,7 @@
 
     <!-- 本周概览 -->
     <div class="card week-summary">
-      <div class="card-title">&#128202; 本周影响概览</div>
+      <div class="card-title">📊 本周影响概览</div>
       <div class="week-stats">
         <div class="week-stat" v-for="stat in weekStats" :key="stat.category">
           <span class="stat-icon">{{ stat.icon }}</span>
@@ -20,7 +20,7 @@
       </div>
       <div class="week-total" :class="healthStore.weekNetImpact >= 0 ? 'positive' : 'negative'">
         本周净影响: {{ healthStore.weekNetImpact >= 0 ? '+' : '' }}{{ healthStore.weekNetImpact.toFixed(1) }}天
-        {{ healthStore.weekNetImpact >= 0 ? '&#128994;' : '&#128308;' }}
+        {{ healthStore.weekNetImpact >= 0 ? '🟢' : '🔴' }}
       </div>
     </div>
 
@@ -73,7 +73,7 @@ const weekStats = computed(() => {
 });
 
 function getCategoryIcon(category: string): string {
-  return DailyRecordCategoryIcons[category as keyof typeof DailyRecordCategoryIcons] || '&#128221;';
+  return DailyRecordCategoryIcons[category as keyof typeof DailyRecordCategoryIcons] || '📝';
 }
 
 function formatDate(dateStr: string): string {

@@ -1,7 +1,7 @@
 <template>
   <div class="card pension-card" @click="$router.push('/pension')">
     <div class="card-header">
-      <span class="card-title">&#128176; 养老金测算</span>
+      <span class="card-title">💰 养老金测算</span>
       <span class="card-link">详情 &#8250;</span>
     </div>
     <div v-if="!hasData" class="pension-empty">

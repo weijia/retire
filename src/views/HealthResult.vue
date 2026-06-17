@@ -8,7 +8,7 @@
 
     <!-- 未配置提示 -->
     <div v-if="!userStore.isConfigured" class="card setup-prompt">
-      <div class="setup-icon">&#9881;&#65039;</div>
+      <div class="setup-icon">⚙️</div>
       <h2>请先完成基本设置</h2>
       <p>需要出生年份和性别信息来计算预期寿命</p>
       <button class="btn btn-primary btn-block" @click="$router.push('/settings')">
@@ -17,7 +17,7 @@
     </div>
 
     <div v-else-if="!healthStore.hasProfile" class="card setup-prompt">
-      <div class="setup-icon">&#129504;</div>
+      <div class="setup-icon">🧠</div>
       <h2>请先填写健康画像</h2>
       <p>填写您的健康基线数据，开始预期寿命评估</p>
       <button class="btn btn-primary btn-block" @click="$router.push('/health')">
@@ -28,7 +28,7 @@
     <template v-else>
       <!-- 预期寿命主展示 -->
       <div class="card result-card">
-        <div class="result-icon">&#127874;</div>
+        <div class="result-icon">🎂</div>
         <div class="result-label">预期寿命</div>
         <div class="result-value">{{ result.adjustedTotalAge }} <span class="result-unit">岁</span></div>
         <div class="result-detail">
@@ -38,7 +38,7 @@
 
       <!-- 因素影响分析 -->
       <div class="card">
-        <div class="card-title">&#128202; 因素影响分析</div>
+        <div class="card-title">📊 因素影响分析</div>
         <div class="factor-list">
           <div
             v-for="item in result.breakdown"
@@ -62,7 +62,7 @@
 
       <!-- 改善建议 -->
       <div v-if="suggestions.length > 0" class="card">
-        <div class="card-title">&#128161; 改善建议</div>
+        <div class="card-title">💡 改善建议</div>
         <ul class="suggestion-list">
           <li v-for="(s, i) in suggestions" :key="i" class="suggestion-item">
             {{ s }}
@@ -74,15 +74,15 @@
       <div class="card action-card">
         <div class="action-buttons">
           <router-link to="/health" class="action-btn">
-            <span>&#9997;&#65039;</span>
+            <span>✍️</span>
             <span>修改画像</span>
           </router-link>
           <router-link to="/health/daily/add" class="action-btn">
-            <span>&#10133;</span>
+            <span>➕</span>
             <span>记录今日</span>
           </router-link>
           <router-link to="/health/daily" class="action-btn">
-            <span>&#128220;</span>
+            <span>📜</span>
             <span>查看记录</span>
           </router-link>
         </div>
@@ -124,19 +124,19 @@ const gender = computed(() => {
 
 function getFactorIcon(name: string): string {
   const map: Record<string, string> = {
-    '吸烟': '&#128684;',
-    '饮酒': '&#127866;',
-    '饮食结构': '&#129367;',
-    '运动': '&#127939;',
-    'BMI': '&#9878;&#65039;',
-    '睡眠': '&#128164;',
-    '压力': '&#129504;',
-    '空气质量': '&#127758;',
-    '慢性病': '&#127973;',
-    '家族史': '&#128106;',
-    '每日记录': '&#128197;',
+    '吸烟': '🚬',
+    '饮酒': '🍺',
+    '饮食结构': '🥗',
+    '运动': '🏃',
+    'BMI': '⚖️',
+    '睡眠': '😴',
+    '压力': '🧠',
+    '空气质量': '🌍',
+    '慢性病': '🏥',
+    '家族史': '👨‍👩‍👧',
+    '每日记录': '📅',
   };
-  return map[name] || '&#8226;';
+  return map[name] || '•';
 }
 
 function getBarWidth(days: number): number {
@@ -317,7 +317,7 @@ watch(() => healthStore.dailyRecords.length, recalculate);
 }
 
 .suggestion-item::before {
-  content: '&#8226;';
+  content: '•';
   color: var(--primary);
   margin-right: 8px;
 }

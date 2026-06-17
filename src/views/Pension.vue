@@ -8,7 +8,7 @@
 
     <!-- 未配置提示 -->
     <div v-if="!userStore.isConfigured" class="card setup-prompt">
-      <div class="setup-icon">&#9881;&#65039;</div>
+      <div class="setup-icon">⚙️</div>
       <h2>请先完成基本设置</h2>
       <p>需要出生年份和退休年龄信息</p>
       <button class="btn btn-primary btn-block" @click="$router.push('/settings')">
@@ -20,7 +20,7 @@
       <!-- 测算参数 -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">&#128203; 测算参数</span>
+          <span class="card-title">📋 测算参数</span>
           <span class="card-link" @click="showConfig = true">修改 &#8250;</span>
         </div>
         <div class="config-display">
@@ -42,7 +42,7 @@
       <!-- 测算结果 -->
       <div v-if="hasResult && pensionResult" class="card result-card">
         <div class="result-header">
-          <span class="card-title">&#128176; 测算结果</span>
+          <span class="card-title">💰 测算结果</span>
         </div>
         <div class="result-grid">
           <div class="result-item">
@@ -84,7 +84,7 @@
 
       <!-- 计算明细 -->
       <div v-if="hasResult && pensionResult" class="card">
-        <div class="card-title">&#128202; 计算明细</div>
+        <div class="card-title">📊 计算明细</div>
         <div class="detail-grid">
           <div class="detail-item">
             <span class="detail-label">退休时社平工资</span>
@@ -115,7 +115,7 @@
 
       <!-- 历年缴费明细 -->
       <div v-if="hasResult && pensionResult && pensionResult!.yearlyDetails.length > 0" class="card">
-        <div class="card-title">&#128220; 历年缴费明细</div>
+        <div class="card-title">📜 历年缴费明细</div>
         <div class="yearly-table">
           <div class="table-header">
             <span>年份</span>
@@ -136,7 +136,7 @@
 
       <!-- 资产充足性 -->
       <div v-if="hasResult && sufficiency" class="card">
-        <div class="card-title">&#128200; 资产充足性分析</div>
+        <div class="card-title">📈 资产充足性分析</div>
         <div class="sufficiency-detail">
           <div class="suff-row">
             <span>退休时总资产</span>
@@ -163,15 +163,15 @@
           class="sufficiency-status"
           :class="sufficiency.isSufficient ? 'sufficient' : 'insufficient'"
         >
-          <span v-if="sufficiency.isSufficient">&#9989; 资产充足</span>
-          <span v-else>&#10071; 资金缺口 {{ formatMoney(sufficiency.gap) }}</span>
+          <span v-if="sufficiency.isSufficient">✅ 资产充足</span>
+          <span v-else>❗ 资金缺口 {{ formatMoney(sufficiency.gap) }}</span>
         </div>
       </div>
 
       <!-- 缴存记录入口 -->
       <div class="card">
         <div class="card-header">
-          <span class="card-title">&#128178; 缴存记录</span>
+          <span class="card-title">💵 缴存记录</span>
           <router-link to="/pension/records" class="card-link">管理 &#8250;</router-link>
         </div>
         <div class="records-summary">

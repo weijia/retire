@@ -1,7 +1,7 @@
 <template>
   <div class="card le-card" @click="$router.push('/health/result')">
     <div class="card-header">
-      <span class="card-title">&#127874; 预期寿命</span>
+      <span class="card-title">🎂 预期寿命</span>
       <span class="card-link">详情 &#8250;</span>
     </div>
     <div v-if="!hasData" class="le-empty">
@@ -18,7 +18,7 @@
       <div v-if="todayImpact !== 0" class="le-today">
         今日: {{ todayImpact > 0 ? '+' : '' }}{{ todayImpact.toFixed(1) }}天
         <span :class="todayImpact >= 0 ? 'positive' : 'negative'">
-          {{ todayImpact >= 0 ? '&#128994;' : '&#128308;' }}
+          {{ todayImpact >= 0 ? '🟢' : '🔴' }}
         </span>
       </div>
     </div>

@@ -7,7 +7,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#128684; 吸烟情况</div>
+      <div class="card-title">🚬 吸烟情况</div>
       <div class="form-group">
         <div class="radio-group">
           <label class="radio-item" :class="{ active: form.smokingStatus === 'never' }">
@@ -47,7 +47,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#127866; 饮酒情况</div>
+      <div class="card-title">🍺 饮酒情况</div>
       <div class="form-group">
         <div class="radio-group">
           <label class="radio-item" :class="{ active: form.drinkingStatus === 'never' }">
@@ -75,7 +75,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#129367; 饮食结构</div>
+      <div class="card-title">🥗 饮食结构</div>
       <div class="form-group">
         <label class="form-label">整体饮食模式</label>
         <div class="radio-group">
@@ -116,7 +116,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#127939; 身体活动</div>
+      <div class="card-title">🏃 身体活动</div>
       <div class="form-row">
         <div class="form-group half">
           <label class="form-label">运动次数/周</label>
@@ -134,7 +134,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#9878;&#65039; 身体指标</div>
+      <div class="card-title">⚖️ 身体指标</div>
       <div class="form-row">
         <div class="form-group half">
           <label class="form-label">身高（cm）</label>
@@ -152,7 +152,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#128164; 睡眠</div>
+      <div class="card-title">😴 睡眠</div>
       <div class="form-group">
         <label class="form-label">每日睡眠时长（小时）</label>
         <input v-model.number="form.sleepHoursPerDay" type="number" class="form-input" min="0" max="24" step="0.5" />
@@ -160,7 +160,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#129504; 心理与环境</div>
+      <div class="card-title">🧠 心理与环境</div>
       <div class="form-group">
         <label class="form-label">压力水平（1-10，10最高）</label>
         <input v-model.number="form.stressLevel" type="range" class="form-range" min="1" max="10" />
@@ -190,7 +190,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#127973; 慢性病史</div>
+      <div class="card-title">🏥 慢性病史</div>
       <div class="checkbox-group">
         <label class="checkbox-item">
           <input type="checkbox" v-model="form.hasDiabetes" />
@@ -216,7 +216,7 @@
     </div>
 
     <div class="card">
-      <div class="card-title">&#128106; 家族史</div>
+      <div class="card-title">👨‍👩‍👧 家族史</div>
       <div class="checkbox-group">
         <label class="checkbox-item">
           <input type="checkbox" v-model="form.familyHistoryLongevity" />
