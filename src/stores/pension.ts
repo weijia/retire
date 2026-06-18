@@ -236,15 +236,40 @@ export const usePensionStore = defineStore('pension', () => {
     currentYear: number,
     avgWageMap?: Map<number, number>
   ): PensionCalculationResult {
-    // 优先使用阶段展开的记录
-    let recordsToUse: PensionRecord[];
+    // 合并 PDF 导入记录和缴费阶段展开记录
+    // 阶段展开记录覆盖同年的导入记录（阶段配置优先）
+    const cfg = config.value?.data;
+    const retirementYear = cfg ? currentYear + (cfg.retirementAge - currentAge) : currentYear + 25;
+
+    let recordsToUse = [...records.value];
+
     if (phases.value.length > 0) {
-      const cfg = config.value?.data;
-      const retirementYear = cfg ? currentYear + (cfg.retirementAge - currentAge) : currentYear + 25;
-      recordsToUse = expandPhasesToRecords(phases.value, retirementYear, avgWageMap);
-    } else {
-      recordsToUse = records.value;
+      const phaseRecords = expandPhasesToRecords(phases.value, retirementYear, avgWageMap);
+      // 按年份建立索引：阶段记录覆盖导入记录
+      const phaseYearMap = new Map<number, PensionRecord>();
+      for (const pr of phaseRecords) {
+        phaseYearMap.set(pr.data.year, pr);
+      }
+      // 合并：导入记录中不在阶段覆盖范围内的保留，阶段覆盖的替换
+      const merged: PensionRecord[] = [];
+      const coveredYears = new Set<number>();
+      for (const r of recordsToUse) {
+        if (phaseYearMap.has(r.data.year)) {
+          merged.push(phaseYearMap.get(r.data.year)!);
+          coveredYears.add(r.data.year);
+        } else {
+          merged.push(r);
+        }
+      }
+      // 添加阶段中不在导入记录里的年份
+      for (const pr of phaseRecords) {
+        if (!coveredYears.has(pr.data.year)) {
+          merged.push(pr);
+        }
+      }
+      recordsToUse = merged;
     }
+
     return calculatePension(recordsToUse, config.value, currentAge, lifeExpectancy, currentYear, avgWageMap);
   }
 
