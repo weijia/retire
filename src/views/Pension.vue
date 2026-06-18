@@ -168,6 +168,51 @@
         </div>
       </div>
 
+      <!-- 浙里办 PDF 导入 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📥 浙里办导入</span>
+        </div>
+        <p class="import-desc">
+          从浙里办 APP 下载"基本养老历年参保证明"PDF，直接导入缴费记录
+        </p>
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".pdf"
+          style="display: none"
+          @change="handleFileChange"
+        />
+        <button class="btn btn-primary btn-block" @click="fileInput?.click()">
+          选择 PDF 文件
+        </button>
+
+        <!-- 导入预览 -->
+        <div v-if="importPreview" class="import-preview">
+          <div class="preview-header">
+            <span v-if="importPreview.name">姓名: {{ importPreview.name }}</span>
+            <span v-if="importPreview.totalYears">累计缴费: {{ importPreview.totalYears }}</span>
+          </div>
+          <div class="preview-records">
+            <div v-for="r in importPreview.records" :key="r._id" class="preview-row">
+              <span>{{ r.data.year }}年</span>
+              <span>基数 {{ formatMoney(r.data.monthlyBase) }}</span>
+              <span>{{ r.data.monthsPaid }}个月</span>
+            </div>
+          </div>
+          <div class="preview-actions">
+            <button class="btn btn-primary btn-block" @click="confirmImport">
+              确认导入 {{ importPreview.records.length }} 条记录
+            </button>
+            <button class="btn btn-block" @click="cancelImport">取消</button>
+          </div>
+        </div>
+
+        <div v-if="importErrors.length > 0" class="import-errors">
+          <div v-for="(err, i) in importErrors" :key="i" class="error-item">{{ err }}</div>
+        </div>
+      </div>
+
       <!-- 缴费阶段管理 -->
       <div class="card">
         <div class="card-header">
@@ -277,6 +322,7 @@ import { usePlansStore } from '../stores/plans';
 import { formatMoney } from '../utils/format';
 import { getPayoutMonths } from '../utils/pensionCalc';
 import type { PensionCalculationResult, SufficiencyResult } from '../utils/pensionCalc';
+import { parseZhelibaoPensionPdf, type ZhelibaoPensionImportResult } from '../utils/pdfImport';
 
 const userStore = useUserStore();
 const healthStore = useHealthStore();
@@ -286,6 +332,9 @@ const plansStore = usePlansStore();
 const showConfig = ref(false);
 const pensionResult = ref<PensionCalculationResult | null>(null);
 const sufficiency = ref<SufficiencyResult | null>(null);
+const fileInput = ref<HTMLInputElement | null>(null);
+const importPreview = ref<ZhelibaoPensionImportResult | null>(null);
+const importErrors = ref<string[]>([]);
 
 const pensionConfig = ref({
   pensionType: 'basic' as 'basic' | 'supplementary' | 'both',
@@ -342,6 +391,41 @@ async function deletePhase(id: string) {
   if (!confirm('确定删除该缴费阶段吗？')) return;
   await pensionStore.removePhase(id);
   calcPension();
+}
+
+async function handleFileChange(e: Event) {
+  const target = e.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+
+  importErrors.value = [];
+  importPreview.value = null;
+
+  const result = await parseZhelibaoPensionPdf(file);
+  if (result.success) {
+    importPreview.value = result;
+  } else {
+    importErrors.value = result.errors;
+  }
+
+  // 清空 input 以便可以再次选择同一文件
+  target.value = '';
+}
+
+async function confirmImport() {
+  if (!importPreview.value) return;
+
+  for (const record of importPreview.value.records) {
+    await pensionStore.addRecord(record.data);
+  }
+
+  importPreview.value = null;
+  calcPension();
+}
+
+function cancelImport() {
+  importPreview.value = null;
+  importErrors.value = [];
 }
 
 onMounted(async () => {
@@ -781,5 +865,64 @@ onMounted(async () => {
   background: var(--danger, #ff4d4f);
   color: white;
   border-color: var(--danger, #ff4d4f);
+}
+
+.import-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.import-preview {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+
+.preview-header {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-records {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.preview-row:last-child {
+  border-bottom: none;
+}
+
+.preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.import-errors {
+  margin-top: 12px;
+}
+
+.error-item {
+  font-size: 13px;
+  color: var(--danger, #ff4d4f);
+  padding: 6px 0;
 }
 </style>

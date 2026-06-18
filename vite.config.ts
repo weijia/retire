@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -43,4 +44,17 @@ export default defineConfig({
   // GitHub Pages 使用仓库名作为子路径
   // WebDAV 部署到 online/retire 子目录
   base: process.env.GITHUB_PAGES === 'true' ? '/retire/' : './',
+
+  resolve: {
+    alias: {
+      // pdfjs-dist worker 路径别名
+      'pdfjs-dist': path.resolve(__dirname, 'node_modules/pdfjs-dist'),
+    },
+  },
+
+  build: {
+    commonjsOptions: {
+      transformMixedEsModules: true,
+    },
+  },
 })
