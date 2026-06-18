@@ -3,7 +3,7 @@
     <div class="page-header">
       <button class="back-btn" @click="$router.back()">&#8249; 返回</button>
       <h1>养老金测算</h1>
-      <span></span>
+      <router-link to="/pension/help" class="help-link">说明 &#8250;</router-link>
     </div>
 
     <!-- 未配置提示 -->
@@ -346,6 +346,12 @@ onMounted(async () => {
   color: var(--primary);
   cursor: pointer;
   padding: 4px;
+}
+
+.help-link {
+  font-size: 13px;
+  color: var(--primary);
+  text-decoration: none;
 }
 
 .setup-prompt {

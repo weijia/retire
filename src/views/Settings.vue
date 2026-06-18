@@ -155,6 +155,14 @@
         </div>
       </div>
     </div>
+
+    <!-- 功能说明入口 -->
+    <div class="card help-links">
+      <router-link to="/pension/help" class="help-link-item">
+        <span>💰 养老金计算说明</span>
+        <span>›</span>
+      </router-link>
+    </div>
   </div>
 </template>
 
@@ -453,5 +461,29 @@ async function syncFromGitee() {
 .version-row span:last-child {
   color: var(--text-primary);
   font-family: monospace;
+}
+
+.help-links {
+  padding: 0;
+}
+
+.help-link-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.help-link-item:last-child {
+  border-bottom: none;
+}
+
+.help-link-item span:last-child {
+  color: var(--text-light);
+  font-size: 16px;
 }
 </style>

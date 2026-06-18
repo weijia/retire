@@ -98,6 +98,11 @@ const routes = [
     name: 'PensionRecordEdit',
     component: () => import('../views/PensionRecordForm.vue'),
   },
+  {
+    path: '/pension/help',
+    name: 'PensionHelp',
+    component: () => import('../views/PensionHelp.vue'),
+  },
 ];
 
 const router = createRouter({
