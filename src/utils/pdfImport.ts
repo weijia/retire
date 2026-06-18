@@ -1,17 +1,11 @@
 import type { PensionRecord } from '../types';
 
-// Polyfill: Promise.try 在旧版浏览器中不可用
-if (!(Promise as any).try) {
-  (Promise as any).try = function <T>(fn: () => T | Promise<T>): Promise<T> {
-    return new Promise((resolve) => resolve(fn()));
-  };
-}
-
 // pdfjs-dist 动态导入（按需加载，减少初始包体积）
+// 禁用 Worker：避免 Worker 线程中 Promise.try 等新 API 不可用的问题
 async function getPdfjs() {
   const pdfjs = await import('pdfjs-dist');
-  const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs?url');
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
+  // 设置为空字符串禁用 Worker，pdfjs 会在主线程中运行
+  pdfjs.GlobalWorkerOptions.workerSrc = '';
   return pdfjs;
 }
 
