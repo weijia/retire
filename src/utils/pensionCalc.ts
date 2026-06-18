@@ -127,7 +127,7 @@ export function calculatePension(
   // 按年份排序
   const sortedRecords = [...records].sort((a, b) => a.data.year - b.data.year);
 
-  let accountBalance = cfg.currentPensionBalance;
+  let accountBalance = 0; // 历年明细从 0 开始
   let totalYearsPaid = 0;
   let totalMonthsPaid = 0;
   let weightedIndexSum = 0;
@@ -171,7 +171,11 @@ export function calculatePension(
     });
   }
 
-  // ========== 第二步：计算到退休时的个人账户增长 ==========
+  // ========== 第二步：当前余额 + 计算到退休时的个人账户增长 ==========
+
+  // 将用户当前实际个人账户余额加上（替换历年推算的累积值）
+  // 因为历年推算可能不准确，用户填写的当前余额更可信
+  accountBalance = cfg.currentPensionBalance || accountBalance;
 
   // 如果还有到退休前的年份，按假设利率继续增长
   const lastRecordYear = sortedRecords.length > 0
