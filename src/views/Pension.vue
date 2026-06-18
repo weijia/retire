@@ -256,19 +256,32 @@
 
         <div v-for="phase in pensionStore.sortedPhases" :key="phase.id" class="phase-card">
           <div class="phase-header">
-            <span class="phase-title">{{ phase.startYear }}-{{ phase.endYear }} ({{ phase.endYear - phase.startYear + 1 }}年)</span>
+            <span class="phase-title">
+              {{ phase.phaseType === 'flex' ? '🔧' : '💼' }}
+              {{ phase.startYear }}-{{ phase.endYear }} ({{ phase.endYear - phase.startYear + 1 }}年)
+              <span v-if="phase.phaseType === 'flex'" class="phase-tag">灵活就业</span>
+            </span>
             <div class="phase-actions">
               <button class="btn btn-sm" @click="$router.push(`/pension/phases/edit/${phase.id}`)">编辑</button>
               <button class="btn btn-sm btn-danger" @click="deletePhase(phase.id!)">删除</button>
             </div>
           </div>
           <div class="phase-detail">
-            <span>月基数 {{ formatMoney(phase.monthlyBase) }}</span>
-            <span>社平 {{ formatMoney(phase.avgWage) }}</span>
-            <span>个人 {{ phase.personalRate }}%</span>
-            <span>单位 {{ phase.employerRate }}%</span>
+            <template v-if="phase.phaseType === 'flex'">
+              <span>档次 {{ phase.flexBasePercent || 60 }}%</span>
+              <span>个人 8%</span>
+              <span>统筹 12%</span>
+              <span>月缴 {{ phase.monthsPaidPerYear || 12 }}个月</span>
+            </template>
+            <template v-else>
+              <span>月基数 {{ formatMoney(phase.monthlyBase) }}</span>
+              <span>社平 {{ formatMoney(phase.avgWage) }}</span>
+              <span>个人 {{ phase.personalRate }}%</span>
+              <span>单位 {{ phase.employerRate }}%</span>
+            </template>
           </div>
-          <div v-if="phase.autoFlexEmployment" class="phase-flex">
+          <div v-if="phase.description" class="phase-desc">{{ phase.description }}</div>
+          <div v-if="phase.phaseType !== 'flex' && phase.autoFlexEmployment" class="phase-flex">
             灵活就业: 社平工资 {{ phase.flexBasePercent || 60 }}% 继续缴费至退休
           </div>
         </div>

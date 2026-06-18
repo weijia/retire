@@ -304,50 +304,30 @@ export function calculateSufficiency(
  */
 export function expandPhasesToRecords(
   phases: PensionPhase[],
-  retirementYear: number
+  retirementYear: number,
+  avgWageMap?: Map<number, number>
 ): PensionRecord[] {
   const records: PensionRecord[] = [];
   const now = new Date().toISOString();
 
   for (const phase of phases) {
-    // 1. 展开在职阶段
-    for (let year = phase.startYear; year <= Math.min(phase.endYear, retirementYear); year++) {
-      const monthlyPersonal = Math.round(phase.monthlyBase * (phase.personalRate / 100));
-      const monthlyEmployer = Math.round(phase.monthlyBase * (phase.employerRate / 100));
-      records.push({
-        _id: `phase_${phase.id}_${year}`,
-        type: 'pension_record',
-        createdAt: now,
-        updatedAt: now,
-        data: {
-          year,
-          monthlyBase: phase.monthlyBase,
-          avgWage: phase.avgWage,
-          personalRate: phase.personalRate,
-          monthlyPersonal,
-          employerRate: phase.employerRate,
-          monthlyEmployer,
-          monthsPaid: phase.monthsPaidPerYear,
-          totalPaid: (monthlyPersonal + monthlyEmployer) * phase.monthsPaidPerYear,
-          pensionType: 'basic',
-          description: phase.description,
-        },
-      });
-    }
+    const isFlex = phase.phaseType === 'flex';
 
-    // 2. 灵活就业自动推算
-    if (phase.autoFlexEmployment) {
-      const flexStartYear = phase.endYear + 1;
-      const flexEndYear = retirementYear;
+    if (isFlex) {
+      // 灵活就业阶段：缴费基数 = 社平工资 × 档次比例
       const basePercent = phase.flexBasePercent || 60;
 
-      for (let year = flexStartYear; year <= flexEndYear; year++) {
-        // 推算当年社平工资（按5%增长率）
-        const yearsDiff = year - phase.endYear;
-        const yearAvgWage = Math.round(phase.avgWage * Math.pow(1.05, yearsDiff));
+      for (let year = phase.startYear; year <= Math.min(phase.endYear, retirementYear); year++) {
+        // 优先使用导入的社平工资，否则按 5% 增长推算
+        let yearAvgWage = avgWageMap?.get(year);
+        if (!yearAvgWage) {
+          const baseWage = phase.avgWage || 8000;
+          const yearsDiff = year - phase.startYear;
+          yearAvgWage = Math.round(baseWage * Math.pow(1.05, yearsDiff));
+        }
         const flexBase = Math.round(yearAvgWage * basePercent / 100);
 
-        // 灵活就业：总比例20%，其中8%入个人账户，12%入统筹
+        // 灵活就业：总比例 20%，其中 8% 入个人账户，12% 入统筹
         const monthlyPersonal = Math.round(flexBase * 0.08);
         const monthlyEmployer = Math.round(flexBase * 0.12);
 
@@ -364,12 +344,76 @@ export function expandPhasesToRecords(
             monthlyPersonal,
             employerRate: 12,
             monthlyEmployer,
-            monthsPaid: 12,
-            totalPaid: (monthlyPersonal + monthlyEmployer) * 12,
+            monthsPaid: phase.monthsPaidPerYear || 12,
+            totalPaid: (monthlyPersonal + monthlyEmployer) * (phase.monthsPaidPerYear || 12),
             pensionType: 'basic',
-            description: '灵活就业缴费',
+            description: phase.description || '灵活就业缴费',
           },
         });
+      }
+    } else {
+      // 在职阶段
+      for (let year = phase.startYear; year <= Math.min(phase.endYear, retirementYear); year++) {
+        const monthlyPersonal = Math.round(phase.monthlyBase * (phase.personalRate / 100));
+        const monthlyEmployer = Math.round(phase.monthlyBase * (phase.employerRate / 100));
+        records.push({
+          _id: `phase_${phase.id}_${year}`,
+          type: 'pension_record',
+          createdAt: now,
+          updatedAt: now,
+          data: {
+            year,
+            monthlyBase: phase.monthlyBase,
+            avgWage: phase.avgWage,
+            personalRate: phase.personalRate,
+            monthlyPersonal,
+            employerRate: phase.employerRate,
+            monthlyEmployer,
+            monthsPaid: phase.monthsPaidPerYear,
+            totalPaid: (monthlyPersonal + monthlyEmployer) * phase.monthsPaidPerYear,
+            pensionType: 'basic',
+            description: phase.description,
+          },
+        });
+      }
+
+      // 在职阶段结束后自动转灵活就业（向后兼容）
+      if (phase.autoFlexEmployment) {
+        const flexStartYear = phase.endYear + 1;
+        const flexEndYear = retirementYear;
+        const basePercent = phase.flexBasePercent || 60;
+
+        for (let year = flexStartYear; year <= flexEndYear; year++) {
+          let yearAvgWage = avgWageMap?.get(year);
+          if (!yearAvgWage) {
+            const yearsDiff = year - phase.endYear;
+            yearAvgWage = Math.round(phase.avgWage * Math.pow(1.05, yearsDiff));
+          }
+          const flexBase = Math.round(yearAvgWage * basePercent / 100);
+
+          const monthlyPersonal = Math.round(flexBase * 0.08);
+          const monthlyEmployer = Math.round(flexBase * 0.12);
+
+          records.push({
+            _id: `phase_${phase.id}_auto_flex_${year}`,
+            type: 'pension_record',
+            createdAt: now,
+            updatedAt: now,
+            data: {
+              year,
+              monthlyBase: flexBase,
+              avgWage: yearAvgWage,
+              personalRate: 8,
+              monthlyPersonal,
+              employerRate: 12,
+              monthlyEmployer,
+              monthsPaid: 12,
+              totalPaid: (monthlyPersonal + monthlyEmployer) * 12,
+              pensionType: 'basic',
+              description: '灵活就业缴费（自动续缴）',
+            },
+          });
+        }
       }
     }
   }

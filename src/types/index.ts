@@ -286,6 +286,7 @@ export interface PensionConfig extends BaseDocument {
 // 缴费阶段
 export interface PensionPhase {
   id?: string;
+  phaseType: 'employment' | 'flex'; // 在职缴费 / 灵活就业
   startYear: number;
   endYear: number;
   monthlyBase: number;
@@ -294,9 +295,10 @@ export interface PensionPhase {
   employerRate: number;
   monthsPaidPerYear: number;
   description?: string;
-  // 灵活就业
-  autoFlexEmployment: boolean;
-  flexBasePercent: number;  // 默认 60
+  // 灵活就业专用
+  flexBasePercent: number;  // 缴费基数占社平工资比例，默认 60
+  // 在职阶段专用：结束后是否自动转灵活就业（向后兼容）
+  autoFlexEmployment?: boolean;
 }
 
 // Gitee 同步配置
