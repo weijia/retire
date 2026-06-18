@@ -199,19 +199,24 @@ export function calculatePension(
     ?? (sortedRecords.length > 0 ? sortedRecords[sortedRecords.length - 1].data.avgWage : 8000);
 
   // 推算到退休时的社平工资（按最近几年的平均增长率）
-  const recentYears = sortedRecords.slice(-3);
+  // 只使用导入的社平工资数据计算增长率，不使用记录中的估算值
   let avgGrowthRate = 0.05; // 默认 5%
-  if (recentYears.length >= 2) {
-    const growthRates = [];
-    for (let i = 1; i < recentYears.length; i++) {
-      const prevYear = recentYears[i - 1].data.year;
-      const currYear = recentYears[i].data.year;
-      const prev = avgWageMap?.get(prevYear) ?? recentYears[i - 1].data.avgWage;
-      const curr = avgWageMap?.get(currYear) ?? recentYears[i].data.avgWage;
-      if (prev > 0) growthRates.push((curr - prev) / prev);
-    }
-    if (growthRates.length > 0) {
-      avgGrowthRate = growthRates.reduce((a, b) => a + b, 0) / growthRates.length;
+  if (avgWageMap && avgWageMap.size >= 2) {
+    // 从 avgWageMap 中取最近几年的数据
+    const sortedWageYears = Array.from(avgWageMap.entries())
+      .map(([year, wage]) => ({ year, wage }))
+      .sort((a, b) => a.year - b.year);
+    const recentWages = sortedWageYears.slice(-3);
+    if (recentWages.length >= 2) {
+      const growthRates = [];
+      for (let i = 1; i < recentWages.length; i++) {
+        const prev = recentWages[i - 1].wage;
+        const curr = recentWages[i].wage;
+        if (prev > 0) growthRates.push((curr - prev) / prev);
+      }
+      if (growthRates.length > 0) {
+        avgGrowthRate = growthRates.reduce((a, b) => a + b, 0) / growthRates.length;
+      }
     }
   }
 
