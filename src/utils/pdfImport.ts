@@ -1,11 +1,40 @@
 import type { PensionRecord } from '../types';
 
 // pdfjs-dist 动态导入（按需加载，减少初始包体积）
-// 禁用 Worker：避免 Worker 线程中 Promise.try 等新 API 不可用的问题
 async function getPdfjs() {
   const pdfjs = await import('pdfjs-dist');
-  // 设置为空字符串禁用 Worker，pdfjs 会在主线程中运行
-  pdfjs.GlobalWorkerOptions.workerSrc = '';
+  // 获取 worker 代码，在前面注入 polyfill 后创建 Blob URL
+  // 解决旧版浏览器不支持 Promise.try 的问题
+  const workerCode = `
+    // Polyfill: Promise.try
+    if (typeof Promise.try !== 'function') {
+      Promise.try = function(fn) {
+        return new Promise(function(resolve) { resolve(fn()); });
+      };
+    }
+  `;
+  const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+  const blobUrl = URL.createObjectURL(workerBlob);
+
+  // 先设置 polyfill worker，让 pdfjs 初始化
+  pdfjs.GlobalWorkerOptions.workerSrc = blobUrl;
+
+  // 然后用真正的 worker 代码替换
+  const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs?url');
+  const realWorkerUrl = pdfjsWorker.default;
+
+  // 获取真正的 worker 代码
+  const realWorkerResp = await fetch(realWorkerUrl);
+  const realWorkerCode = await realWorkerResp.text();
+
+  // 拼接 polyfill + 真正的 worker 代码
+  const combinedBlob = new Blob([workerCode + realWorkerCode], { type: 'application/javascript' });
+  const combinedUrl = URL.createObjectURL(combinedBlob);
+
+  // 释放临时 URL
+  URL.revokeObjectURL(blobUrl);
+
+  pdfjs.GlobalWorkerOptions.workerSrc = combinedUrl;
   return pdfjs;
 }
 
