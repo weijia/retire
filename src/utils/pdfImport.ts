@@ -3,31 +3,9 @@ import type { PensionRecord } from '../types';
 // pdfjs-dist 动态导入（按需加载，减少初始包体积）
 async function getPdfjs() {
   const pdfjs = await import('pdfjs-dist');
+  const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.entry.js?url');
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
   return pdfjs;
-}
-
-/**
- * 创建带 polyfill 的 Worker Blob URL
- * 解决旧版浏览器不支持 Promise.try / Promise.withResolvers 的问题
- */
-function getWorkerBlobUrl(workerCode: string): string {
-  const polyfillCode = `
-if (typeof Promise.try !== 'function') {
-  Promise.try = function(fn) {
-    return new Promise(function(resolve) { resolve(fn()); });
-  };
-}
-if (typeof Promise.withResolvers !== 'function') {
-  Promise.withResolvers = function() {
-    var resolve, reject;
-    var promise = new Promise(function(res, rej) { resolve = res; reject = rej; });
-    return { promise: promise, resolve: resolve, reject: reject };
-  };
-}
-`;
-  const combinedCode = polyfillCode + '\n' + workerCode;
-  const workerBlob = new Blob([combinedCode], { type: 'application/javascript' });
-  return URL.createObjectURL(workerBlob);
 }
 
 /**
@@ -45,13 +23,6 @@ export interface ZhelibaoPensionImportResult {
 
 /**
  * 解析浙里办"基本养老历年参保证明"PDF
- *
- * PDF 格式特征：
- * - 标题：浙江省职工基本养老保险历年参保证明
- * - 头部：姓名、社会保障号、参保状态、性别、证件类型、累计缴费
- * - 表格：参保地 | 年度 | 缴费起止时间 | 月缴费基数 | 参保单位名称 | 备注
- *
- * 注意：同一自然年内可能有多个记录（换单位），需要合并
  */
 export async function parseZhelibaoPensionPdf(
   file: File
@@ -65,17 +36,6 @@ export async function parseZhelibaoPensionPdf(
   try {
     const arrayBuffer = await file.arrayBuffer();
     const pdfjs = await getPdfjs();
-
-    // 获取 worker 代码并注入 polyfill
-    const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs?url');
-    const realWorkerUrl = pdfjsWorker.default;
-    const realWorkerResp = await fetch(realWorkerUrl);
-    const realWorkerCode = await realWorkerResp.text();
-    const workerBlobUrl = getWorkerBlobUrl(realWorkerCode);
-
-    // 设置 worker Blob URL
-    pdfjs.GlobalWorkerOptions.workerSrc = workerBlobUrl;
-
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 
     let fullText = '';
@@ -100,11 +60,7 @@ export async function parseZhelibaoPensionPdf(
     if (totalYearsMatch) result.totalYears = totalYearsMatch[1];
 
     // 解析历年缴费记录
-    // 格式：参保地 年度 缴费起止时间 月缴费基数 参保单位名称
-    // 示例：杭州市本级 2005 200504-200512 4396 宇通科技(杭州)有限公司
     const rawRecords = parseRecordsFromText(fullText);
-
-    // 按年度合并同一年内的多条记录
     const mergedRecords = mergeRecordsByYear(rawRecords);
 
     result.records = mergedRecords;
@@ -141,14 +97,9 @@ function parseRecordsFromText(text: string): Array<{
     monthsPaid: number;
   }> = [];
 
-  // 匹配每一行缴费记录
-  // 格式：杭州市本级 2005 200504-200512 4396 宇通科技(杭州)有限公司
-  // 或者：杭州市本级 2006 200601-200605 3000 浙江华盈科技有限公司
   const lines = text.split('\n');
 
   for (const line of lines) {
-    // 尝试匹配：参保地 年度 起止时间 基数 单位名
-    // 起止时间格式：YYYYMM-YYYYMM
     const match = line.match(
       /(\S+?)\s+(\d{4})\s+(\d{6})\s*-\s*(\d{6})\s+([\d,\.]+)\s+(.*)/
     );
@@ -161,7 +112,6 @@ function parseRecordsFromText(text: string): Array<{
       const monthlyBase = parseFloat(baseStr);
       const employer = match[6].trim();
 
-      // 计算缴费月数
       const startY = parseInt(startMonth.substring(0, 4), 10);
       const startM = parseInt(startMonth.substring(4, 6), 10);
       const endY = parseInt(endMonth.substring(0, 4), 10);
@@ -186,7 +136,6 @@ function parseRecordsFromText(text: string): Array<{
 
 /**
  * 按年度合并记录
- * 同一自然年内多条记录（换单位）合并为一条，按月数加权平均基数
  */
 function mergeRecordsByYear(
   rawRecords: Array<{
@@ -229,13 +178,10 @@ function mergeRecordsByYear(
 
   for (const [year, data] of yearMap) {
     const avgMonthlyBase = Math.round(data.monthlyBaseSum / data.monthsPaid);
-    const personalRate = 8; // 默认个人缴费比例 8%
-    const employerRate = 16; // 默认单位缴费比例 16%
+    const personalRate = 8;
+    const employerRate = 16;
     const monthlyPersonal = Math.round(avgMonthlyBase * 0.08);
     const monthlyEmployer = Math.round(avgMonthlyBase * 0.16);
-
-    // 估算当年社平工资（按缴费基数反推，假设缴费基数约为社平工资的 100%）
-    // 实际社平工资需要用户补充或从其他来源获取
     const estimatedAvgWage = avgMonthlyBase;
 
     records.push({
