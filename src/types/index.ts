@@ -283,6 +283,22 @@ export interface PensionConfig extends BaseDocument {
   };
 }
 
+// 缴费阶段
+export interface PensionPhase {
+  id?: string;
+  startYear: number;
+  endYear: number;
+  monthlyBase: number;
+  avgWage: number;
+  personalRate: number;
+  employerRate: number;
+  monthsPaidPerYear: number;
+  description?: string;
+  // 灵活就业
+  autoFlexEmployment: boolean;
+  flexBasePercent: number;  // 默认 60
+}
+
 // Gitee 同步配置
 export interface GiteeSyncConfig extends BaseDocument {
   type: 'gitee_sync_config';

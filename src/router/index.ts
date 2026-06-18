@@ -99,6 +99,16 @@ const routes = [
     component: () => import('../views/PensionRecordForm.vue'),
   },
   {
+    path: '/pension/phases/add',
+    name: 'PensionPhaseForm',
+    component: () => import('../views/PensionPhaseForm.vue'),
+  },
+  {
+    path: '/pension/phases/edit/:id',
+    name: 'PensionPhaseEdit',
+    component: () => import('../views/PensionPhaseForm.vue'),
+  },
+  {
     path: '/pension/help',
     name: 'PensionHelp',
     component: () => import('../views/PensionHelp.vue'),

@@ -168,6 +168,44 @@
         </div>
       </div>
 
+      <!-- 缴费阶段管理 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">&#128203; 缴费阶段</span>
+          <router-link to="/pension/phases/add" class="card-link">+ 添加</router-link>
+        </div>
+
+        <div v-if="pensionStore.sortedPhases.length === 0" class="empty-hint">
+          暂无缴费阶段，点击添加或手动录入缴存记录
+        </div>
+
+        <div v-for="phase in pensionStore.sortedPhases" :key="phase.id" class="phase-card">
+          <div class="phase-header">
+            <span class="phase-title">{{ phase.startYear }}-{{ phase.endYear }} ({{ phase.endYear - phase.startYear + 1 }}年)</span>
+            <div class="phase-actions">
+              <button class="btn btn-sm" @click="$router.push(`/pension/phases/edit/${phase.id}`)">编辑</button>
+              <button class="btn btn-sm btn-danger" @click="deletePhase(phase.id!)">删除</button>
+            </div>
+          </div>
+          <div class="phase-detail">
+            <span>月基数 {{ formatMoney(phase.monthlyBase) }}</span>
+            <span>社平 {{ formatMoney(phase.avgWage) }}</span>
+            <span>个人 {{ phase.personalRate }}%</span>
+            <span>单位 {{ phase.employerRate }}%</span>
+          </div>
+          <div v-if="phase.autoFlexEmployment" class="phase-flex">
+            灵活就业: 社平工资 {{ phase.flexBasePercent || 60 }}% 继续缴费至退休
+          </div>
+        </div>
+
+        <div v-if="pensionStore.sortedPhases.length > 0" class="phase-summary">
+          <div class="summary-item">
+            <span class="summary-label">总缴费年限</span>
+            <span class="summary-value">{{ pensionStore.totalYearsFromPhases.toFixed(1) }}年</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 缴存记录入口 -->
       <div class="card">
         <div class="card-header">
@@ -300,12 +338,19 @@ async function saveConfig() {
   calcPension();
 }
 
+async function deletePhase(id: string) {
+  if (!confirm('确定删除该缴费阶段吗？')) return;
+  await pensionStore.removePhase(id);
+  calcPension();
+}
+
 onMounted(async () => {
   await userStore.loadConfig();
   userStore.checkConfigured();
   await healthStore.loadProfile();
   await pensionStore.loadConfig();
   await pensionStore.loadRecords();
+  await pensionStore.loadPhases();
   await plansStore.loadPlans();
 
   if (pensionStore.config) {
@@ -664,5 +709,77 @@ onMounted(async () => {
 .checkbox-item input {
   width: 18px;
   height: 18px;
+}
+
+.phase-card {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.phase-card:last-of-type {
+  border-bottom: none;
+}
+
+.phase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.phase-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.phase-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.phase-detail {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.phase-flex {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--primary);
+  padding: 4px 8px;
+  background: rgba(74, 144, 217, 0.08);
+  border-radius: 4px;
+}
+
+.phase-summary {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.empty-hint {
+  text-align: center;
+  padding: 16px 0;
+  color: var(--text-light);
+  font-size: 13px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.btn-danger {
+  background: var(--danger, #ff4d4f);
+  color: white;
+  border-color: var(--danger, #ff4d4f);
 }
 </style>

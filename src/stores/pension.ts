@@ -1,14 +1,15 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { PensionRecord, PensionConfig } from '../types';
+import type { PensionRecord, PensionConfig, PensionPhase } from '../types';
 import { putDoc, getDoc, getAllDocs, removeDoc } from '../db';
-import { calculatePension, calculateSufficiency, type PensionCalculationResult, type SufficiencyResult } from '../utils/pensionCalc';
+import { calculatePension, calculateSufficiency, expandPhasesToRecords, type PensionCalculationResult, type SufficiencyResult } from '../utils/pensionCalc';
 
 export const usePensionStore = defineStore('pension', () => {
   // ============ State ============
   const records = ref<PensionRecord[]>([]);
   const config = ref<PensionConfig | null>(null);
   const loading = ref(false);
+  const phases = ref<PensionPhase[]>([]);
 
   const CONFIG_DOC_ID = 'pension_config_main';
 
@@ -30,6 +31,32 @@ export const usePensionStore = defineStore('pension', () => {
   /** 总个人缴费额 */
   const totalPersonalPaid = computed(() => {
     return records.value.reduce((sum, r) => sum + r.data.monthlyPersonal * r.data.monthsPaid, 0);
+  });
+
+  /** 按起始年份排序的阶段 */
+  const sortedPhases = computed(() => {
+    return [...phases.value].sort((a, b) => a.startYear - b.startYear);
+  });
+
+  /** 从阶段展开的记录 */
+  const expandedRecords = computed(() => {
+    if (phases.value.length === 0) return records.value;
+    const cfg = config.value?.data;
+    const retirementYear = cfg ? new Date().getFullYear() + (cfg.retirementAge - (new Date().getFullYear() - 1990)) : new Date().getFullYear() + 25;
+    return expandPhasesToRecords(phases.value, retirementYear);
+  });
+
+  /** 总缴费年限（含阶段展开） */
+  const totalYearsFromPhases = computed(() => {
+    if (phases.value.length === 0) return totalYearsPaid.value;
+    let years = 0;
+    for (const phase of phases.value) {
+      years += Math.min(phase.endYear, new Date().getFullYear()) - phase.startYear + 1;
+      if (phase.autoFlexEmployment) {
+        // 灵活就业年限会在计算时动态确定
+      }
+    }
+    return years;
   });
 
   // ============ Actions ============
@@ -83,6 +110,56 @@ export const usePensionStore = defineStore('pension', () => {
     } finally {
       loading.value = false;
     }
+  }
+
+  /** 加载缴费阶段 */
+  async function loadPhases() {
+    try {
+      const doc = await getDoc('pension_phases');
+      if (doc) {
+        phases.value = (doc as any).data.phases || [];
+      }
+    } catch {
+      phases.value = [];
+    }
+  }
+
+  /** 保存缴费阶段 */
+  async function savePhases(newPhases: PensionPhase[]) {
+    const now = new Date().toISOString();
+    const existing = await getDoc('pension_phases');
+    const doc = {
+      _id: 'pension_phases',
+      type: 'pension_phases',
+      createdAt: (existing as any)?.createdAt || now,
+      updatedAt: now,
+      data: { phases: JSON.parse(JSON.stringify(newPhases)) },
+    };
+    await putDoc(doc as any);
+    phases.value = newPhases;
+  }
+
+  /** 添加缴费阶段 */
+  async function addPhase(phase: PensionPhase) {
+    const newPhase = {
+      ...phase,
+      id: Date.now().toString(36),
+    };
+    const updated = [...phases.value, newPhase];
+    await savePhases(updated);
+    return newPhase;
+  }
+
+  /** 更新缴费阶段 */
+  async function updatePhase(id: string, changes: Partial<PensionPhase>) {
+    const updated = phases.value.map(p => p.id === id ? { ...p, ...changes } : p);
+    await savePhases(updated);
+  }
+
+  /** 删除缴费阶段 */
+  async function removePhase(id: string) {
+    const updated = phases.value.filter(p => p.id !== id);
+    await savePhases(updated);
   }
 
   /** 添加缴存记录 */
@@ -155,7 +232,9 @@ export const usePensionStore = defineStore('pension', () => {
     lifeExpectancy: number,
     currentYear: number
   ): PensionCalculationResult {
-    return calculatePension(records.value, config.value, currentAge, lifeExpectancy, currentYear);
+    // 优先使用阶段展开的记录
+    const recordsToUse = phases.value.length > 0 ? expandedRecords.value : records.value;
+    return calculatePension(recordsToUse, config.value, currentAge, lifeExpectancy, currentYear);
   }
 
   /** 计算充足性 */
@@ -171,13 +250,22 @@ export const usePensionStore = defineStore('pension', () => {
     records,
     config,
     loading,
+    phases,
     hasConfig,
     sortedRecords,
     totalYearsPaid,
     totalPersonalPaid,
+    sortedPhases,
+    expandedRecords,
+    totalYearsFromPhases,
     loadConfig,
     saveConfig,
     loadRecords,
+    loadPhases,
+    savePhases,
+    addPhase,
+    updatePhase,
+    removePhase,
     addRecord,
     updateRecord,
     removeRecord,

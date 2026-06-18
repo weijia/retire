@@ -223,14 +223,25 @@ class BaseService<T> {
 
 | 路径 | 页面 | 说明 |
 |------|------|------|
-| `/` | 首页（倒计时仪表盘） | 退休倒计时、资产总览、消费概览 |
+| `/` | 首页（倒计时仪表盘） | 退休倒计时、预期寿命、养老金、资产总览、消费概览 |
 | `/assets` | 资产管理列表 | 按类型分组展示所有资产账户 |
 | `/assets/add` | 添加/编辑资产 | 资产账户表单 |
 | `/plans` | 消费计划列表 | 按年份和类别展示消费计划 |
 | `/plans/add` | 添加/编辑计划 | 消费计划表单 |
 | `/expenses` | 消费记录列表 | 按日期展示消费记录 |
 | `/expenses/add` | 添加消费记录 | 消费记录表单 |
-| `/settings` | 设置 | 用户信息、退休年龄配置 |
+| `/health` | 健康画像 | 填写/编辑健康基线数据 |
+| `/health/daily` | 每日健康记录 | 每日追加生活习惯变化记录列表 |
+| `/health/daily/add` | 添加每日记录 | 快速记录今日健康行为 |
+| `/health/result` | 预期寿命结果 | 展示预期寿命预测结果与趋势 |
+| `/pension` | 养老金测算 | 测算参数、缴费阶段管理、测算结果 |
+| `/pension/phases/add` | 添加缴费阶段 | 新增缴费阶段表单 |
+| `/pension/phases/edit/:id` | 编辑缴费阶段 | 编辑已有缴费阶段 |
+| `/pension/records` | 缴存记录 | 展开后的逐年缴存记录 |
+| `/pension/records/add` | 添加缴存记录 | 手动添加单年缴存记录 |
+| `/pension/records/edit/:id` | 编辑缴存记录 | 编辑已有缴存记录 |
+| `/pension/help` | 计算说明 | 公式说明、缴费比例对比、灵活就业档位分析 |
+| `/settings` | 设置 | 用户信息、退休年龄配置、Gitee 同步配置 |
 
 ### 4.2 底部导航栏（移动端）
 
@@ -260,6 +271,14 @@ class BaseService<T> {
 │     退休倒计时           │
 │   距退休还有 XXXX 天     │
 │   目标退休日: YYYY-MM-DD │
+├─────────────────────────┤
+│  预期寿命        详情 ›  │
+│  82.3 岁 (+6.2年)       │
+│  今日: 运动+0.5天 🟢    │
+├─────────────────────────┤
+│  养老金测算       详情 ›  │
+│  月领 ¥3,XXX 共17.3年    │
+│  总额 ¥XXX,XXX           │
 ├─────────────────────────┤
 │  资产总览                │
 │  总资产: ¥XXX,XXX.XX    │
@@ -315,16 +334,20 @@ retire/
 │   │   ├── user.ts            # 用户配置 Store
 │   │   ├── assets.ts          # 资产管理 Store
 │   │   ├── plans.ts           # 消费计划 Store
-│   │   └── expenses.ts        # 消费记录 Store
+│   │   ├── expenses.ts        # 消费记录 Store
+│   │   ├── health.ts          # 健康画像与每日记录 Store
+│   │   └── pension.ts         # 养老金 Store（含缴费阶段管理）
 │   ├── db/
-│   │   ├── index.ts           # PouchDB 初始化
+│   │   ├── index.ts           # IndexedDB 初始化（v3，idb 封装）
 │   │   ├── base.ts            # 基础 CRUD 服务
 │   │   └── indexes.ts         # 索引定义
 │   ├── types/
-│   │   └── index.ts           # TypeScript 类型定义
+│   │   └── index.ts           # TypeScript 类型定义（含健康、养老金类型）
 │   ├── utils/
 │   │   ├── format.ts          # 格式化工具（金额、日期）
-│   │   └── calc.ts            # 计算工具（倒计时、汇总）
+│   │   ├── calc.ts            # 计算工具（倒计时、汇总）
+│   │   ├── lifeExpectancy.ts  # 预期寿命计算引擎
+│   │   └── pensionCalc.ts     # 养老金计算工具（含阶段展开）
 │   ├── views/
 │   │   ├── Home.vue           # 首页
 │   │   ├── Assets.vue         # 资产管理
@@ -333,13 +356,24 @@ retire/
 │   │   ├── PlanForm.vue       # 计划表单
 │   │   ├── Expenses.vue       # 消费记录
 │   │   ├── ExpenseForm.vue    # 消费表单
+│   │   ├── HealthProfile.vue  # 健康画像
+│   │   ├── HealthDaily.vue    # 每日健康记录列表
+│   │   ├── HealthDailyForm.vue# 添加/编辑每日健康记录
+│   │   ├── HealthResult.vue   # 预期寿命结果展示
+│   │   ├── Pension.vue        # 养老金测算（含缴费阶段管理）
+│   │   ├── PensionPhaseForm.vue# 添加/编辑缴费阶段
+│   │   ├── PensionRecords.vue # 养老金缴存记录列表
+│   │   ├── PensionRecordForm.vue# 添加/编辑缴存记录
+│   │   ├── PensionHelp.vue    # 养老金计算说明
 │   │   └── Settings.vue       # 设置
 │   ├── components/
-│   │   ├── TabBar.vue         # 底部导航
+│   │   ├── TabBar.vue         # 底部导航（含 FAB 快速添加菜单）
 │   │   ├── CountDown.vue      # 倒计时组件
 │   │   ├── AssetCard.vue      # 资产卡片
 │   │   ├── ExpenseItem.vue    # 消费条目
-│   │   └── ProgressRing.vue   # 进度环组件
+│   │   ├── ProgressRing.vue   # 进度环组件
+│   │   ├── LifeExpectancyCard.vue # 首页预期寿命卡片
+│   │   └── PensionCard.vue    # 首页养老金卡片
 │   └── styles/
 │       └── global.css         # 全局样式
 ├── index.html
@@ -377,6 +411,27 @@ retire/
 ```
 预计退休时总资产 = 当前总资产 + (月度结余 × 剩余月数)
 月度结余 = 月收入 - 月度计划总额（简化模型）
+```
+
+### 7.5 预期寿命计算
+```
+预估寿命 = 基准寿命 + Σ(因素调整值)
+基准寿命 = WHO 生命表查询（按年龄、性别）
+因素调整 = 吸烟 + 饮酒 + 饮食 + 运动 + BMI + 睡眠 + 压力 + 空气质量 + 慢性病 + 家族史
+每日记录影响 = Σ(记录影响 × e^(-λ × 距今天数))
+总调整限制 = 基准寿命 × ±25%
+```
+
+### 7.6 养老金计算
+```
+月养老金 = 基础养老金 + 个人账户养老金 + 过渡性养老金
+基础养老金 = 退休时上年度社平工资 × (1 + 平均缴费指数) / 2 × 缴费年限 × 1%
+个人账户养老金 = 个人账户储存额 / 计发月数
+过渡性养老金 = 退休时社平工资 × 视同缴费指数 × 视同缴费年限 × 过渡系数
+
+缴费阶段展开：
+  在职阶段 → 逐年生成 PensionRecord
+  灵活就业阶段（可选）→ 社平工资 × 60%（默认）× 20% 缴费比例
 ```
 
 ---
@@ -788,7 +843,7 @@ function calculateLifeExpectancy(
 
 ### 10.1 模块概述
 
-结合用户的预期寿命预测结果和养老金缴存情况，计算退休后可领取的养老金总额、每月可领取金额、可领取年数等关键指标。帮助用户更科学地规划退休生活。
+结合用户的预期寿命预测结果和养老金缴存情况，计算退休后可领取的养老金总额、每月可领取金额、可领取年数等关键指标。支持**缴费阶段**输入方式，用户只需输入几个阶段的缴费信息，系统自动展开为逐年记录。支持**灵活就业自动推算**，停止工作后按社平工资 60% 档位继续缴费至退休。
 
 ### 10.2 数据模型
 
@@ -800,91 +855,117 @@ interface PensionRecord extends BaseDocument {
   data: {
     year: number;                     // 缴费年份
     monthlyBase: number;             // 月缴费基数（元）
+    avgWage: number;                  // 当年社平工资（元/月）
     personalRate: number;             // 个人缴费比例（%，默认8%）
-    monthlyPersonal: number;         // 月个人缴费额（元）
+    monthlyPersonal: number;          // 月个人缴费额（元）
     employerRate: number;             // 单位缴费比例（%，默认16%）
     monthlyEmployer: number;          // 月单位缴费额（元）
     monthsPaid: number;               // 当年实际缴费月数
     totalPaid: number;                // 当年总缴费额（元）
-    pensionType: 'basic' | 'supplementary';  // 养老金类型
+    pensionType: 'basic' | 'supplementary';
     description?: string;             // 备注
   };
 }
 ```
 
-**文档ID**: `pension_{uuid}`
+#### 10.2.2 缴费阶段（pension_phase）
 
-**索引字段**: `data.year`, `data.pensionType`
+用户以"阶段"为单位输入缴费信息，系统自动展开为逐年记录。
 
-#### 10.2.2 养老金测算配置（pension_config）
+```typescript
+interface PensionPhase {
+  id?: string;
+  startYear: number;                  // 阶段起始年份（含）
+  endYear: number;                    // 阶段结束年份（含）
+  monthlyBase: number;                // 月缴费基数（元）
+  avgWage: number;                   // 该阶段社平工资（元/月）
+  personalRate: number;               // 个人缴费比例（%）
+  employerRate: number;               // 单位缴费比例（%）
+  monthsPaidPerYear: number;          // 每年缴费月数（默认12）
+  description?: string;               // 备注
+  // 灵活就业
+  autoFlexEmployment: boolean;        // 停止工作后是否自动按灵活就业缴费
+  flexBasePercent: number;            // 灵活就业缴费基数 = 社平工资 × 此比例（默认60%）
+}
+```
+
+**存储方式**：所有阶段存储在一个 `pension_phases` 文档中（嵌套数组）。
+
+#### 10.2.3 养老金测算配置（pension_config）
 
 ```typescript
 interface PensionConfig extends BaseDocument {
   type: 'pension_config';
   data: {
-    pensionType: 'basic' | 'supplementary' | 'both';  // 参保类型
-    currentPensionBalance: number;                       // 当前养老金个人账户余额（元）
-    expectedPensionGrowthRate: number;                  // 养老金投资年化收益率（%，默认3%）
-    averageWageGrowthRate: number;                       // 社平工资年增长率（%，默认5%）
-    retirementAge: number;                               // 法定退休年龄
-    pensionReplaceRate: number;                          // 养老金替代率（%，默认45%）
+    pensionType: 'basic' | 'supplementary' | 'both';
+    currentPensionBalance: number;     // 当前养老金个人账户余额（元）
+    retirementAge: number;             // 法定退休年龄
+    // 过渡性养老金参数（针对1996年前参加工作的"中人"）
+    hasTransitionalPension: boolean;   // 是否有视同缴费年限
+    deemedYears: number;               // 视同缴费年限（年）
+    deemedIndex: number;               // 视同缴费指数
+    transitionalRate: number;          // 过渡系数（通常1.0%-1.4%）
   };
 }
 ```
 
-**文档ID**: `pension_config_main`（单例）
-
 ### 10.3 养老金计算模型
 
-#### 10.3.1 基本养老金计算公式
+#### 10.3.1 精确计算公式
 
-参考中国现行养老保险制度：
+依据《国务院关于完善企业职工基本养老保险制度的决定》（国发〔2005〕38号）：
 
 ```
-月养老金 = 基础养老金 + 个人账户养老金
+月养老金 = 基础养老金 + 个人账户养老金 + 过渡性养老金
 
-基础养老金 = 退休时上年度社平工资 × (1 + 本人平均缴费工资指数) / 2 × 累计缴费年限 × 1%
+基础养老金 = 退休时上年度社平工资 × (1 + 平均缴费指数) / 2 × 缴费年限 × 1%
 
 个人账户养老金 = 个人账户储存额 / 计发月数
 
-计发月数（根据退休年龄）:
-  50岁: 195, 55岁: 170, 60岁: 139, 65岁: 101
+过渡性养老金 = 退休时社平工资 × 视同缴费指数 × 视同缴费年限 × 过渡系数
 ```
 
-#### 10.3.2 养老金可领年数计算
+#### 10.3.2 逐年精确计算
 
-```
-预期寿命 = 预期寿命模块计算结果
-法定退休年龄 = 用户配置的 actualRetireAge
-可领取年数 = 预期寿命 - 法定退休年龄
-可领取总月数 = 可领取年数 × 12
-养老金总额 = 月养老金 × 可领取总月数
-```
+- 每年分别记录缴费基数和社平工资，计算当年缴费指数 = 缴费基数 / 社平工资
+- 个人账户按历年人社部公布的记账利率逐年计息
+- 退休时社平工资按最近几年实际增长率推算
 
-#### 10.3.3 资产充足性分析
+#### 10.3.3 缴费阶段展开
 
-```
-退休时总资产 = 已有资产 + 未来收入 - 未来支出（来自现有模块）
-养老金总额 = 月养老金 × 可领取月数
-退休后总可用 = 退休时总资产 + 养老金总额
-年均可用 = 退休后总可用 / 可领取年数
-月均可用 = 年均可用 / 12
-是否充足 = 月均可用 >= 退休后月均支出
-```
+系统将用户输入的缴费阶段自动展开为逐年 `PensionRecord`：
+
+1. **在职阶段**：按阶段参数逐年生成记录
+2. **灵活就业阶段**（可选）：从阶段结束年份到退休年份，按社平工资 × flexBasePercent（默认60%）生成记录，缴费比例固定为 20%（8% 入个人账户，12% 入统筹）
+
+#### 10.3.4 灵活就业档位选择
+
+| 档位 | 缴费指数 | 每元回报倍数 | 回本年限 |
+|------|---------|------------|---------|
+| 60%（默认） | 0.6 | 1.33 倍 | 最快 |
+| 100% | 1.0 | 1.00 倍 | 中等 |
+| 300% | 3.0 | 0.67 倍 | 最慢 |
+
+默认选择 60% 档位，性价比最高。
 
 ### 10.4 页面与路由设计
 
-#### 新增路由
-
 | 路径 | 页面 | 说明 |
 |------|------|------|
-| `/pension` | 养老金测算 | 养老金配置与测算结果展示 |
-| `/pension/records` | 缴存记录 | 养老金缴存记录列表 |
-| `/pension/records/add` | 添加缴存记录 | 新增/编辑缴存记录 |
+| `/pension` | 养老金测算 | 测算参数、缴费阶段管理、测算结果、计算明细、历年明细、充足性分析 |
+| `/pension/phases/add` | 添加缴费阶段 | 新增缴费阶段表单 |
+| `/pension/phases/edit/:id` | 编辑缴费阶段 | 编辑已有缴费阶段 |
+| `/pension/records` | 缴存记录 | 展开后的逐年缴存记录（只读） |
+| `/pension/records/add` | 添加缴存记录 | 手动添加单年缴存记录 |
+| `/pension/help` | 计算说明 | 公式说明、缴费比例对比、灵活就业档位分析 |
 
-### 10.5 UI 设计
+### 10.5 Gitee 配置存储
 
-#### 10.5.1 养老金测算页布局
+Gitee 同步配置存储在 IndexedDB 中（`gitee_sync_config` 文档类型），随主数据一起备份恢复。
+
+### 10.6 UI 设计
+
+#### 10.6.1 养老金测算页布局
 
 ```
 ┌─────────────────────────┐
@@ -923,7 +1004,7 @@ interface PensionConfig extends BaseDocument {
 └─────────────────────────┘
 ```
 
-#### 10.5.2 首页新增养老金卡片
+#### 10.6.2 首页新增养老金卡片
 
 在首页仪表盘中新增养老金测算卡片：
 
@@ -956,9 +1037,11 @@ interface PensionConfig extends BaseDocument {
 | `src/views/HealthDaily.vue` | 每日健康记录列表页 |
 | `src/views/HealthDailyForm.vue` | 添加/编辑每日健康记录表单 |
 | `src/views/HealthResult.vue` | 预期寿命结果展示页 |
-| `src/views/Pension.vue` | 养老金测算页 |
+| `src/views/Pension.vue` | 养老金测算页（含缴费阶段管理） |
+| `src/views/PensionPhaseForm.vue` | 添加/编辑缴费阶段表单 |
 | `src/views/PensionRecords.vue` | 养老金缴存记录列表页 |
 | `src/views/PensionRecordForm.vue` | 添加/编辑缴存记录表单 |
+| `src/views/PensionHelp.vue` | 养老金计算说明页 |
 
 ### 11.3 组件层
 
@@ -966,8 +1049,6 @@ interface PensionConfig extends BaseDocument {
 |------|------|
 | `src/components/LifeExpectancyCard.vue` | 首页预期寿命卡片组件 |
 | `src/components/PensionCard.vue` | 首页养老金卡片组件 |
-| `src/components/HealthTrendChart.vue` | 寿命变化趋势图组件 |
-| `src/components/FactorBreakdown.vue` | 因素影响分析组件 |
 
 ### 11.4 类型定义更新
 
@@ -976,19 +1057,24 @@ interface PensionConfig extends BaseDocument {
 - `HealthDailyRecord` 接口
 - `DailyRecordCategory` 类型
 - `LifeExpectancySnapshot` 接口
-- `PensionRecord` 接口
-- `PensionConfig` 接口
+- `PensionRecord` 接口（含 avgWage 字段）
+- `PensionConfig` 接口（含过渡性养老金参数）
+- `PensionPhase` 接口（缴费阶段，非 BaseDocument）
+- `GiteeSyncConfig` 接口
 
 ### 11.5 数据库升级
 
-IndexedDB 版本从 1 升级到 2，新增索引：
-- `data_date` (复用于 health_daily_record)
-- `data_category` (复用于 health_daily_record)
-- `data_year` (复用于 pension_record)
+IndexedDB 版本从 1 升级到 3：
+- v2: 新增索引
+- v3: 修复 upgrade 回调中的事务错误
 
 ### 11.6 路由更新
 
-在 `src/router/index.ts` 中新增 7 条路由。
+在 `src/router/index.ts` 中新增路由：
+- `/health`, `/health/daily`, `/health/daily/add`, `/health/result`
+- `/pension`, `/pension/phases/add`, `/pension/phases/edit/:id`
+- `/pension/records`, `/pension/records/add`, `/pension/records/edit/:id`
+- `/pension/help`
 
 ### 11.7 导航更新
 
