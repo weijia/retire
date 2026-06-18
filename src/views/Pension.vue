@@ -176,6 +176,36 @@
         <p class="import-desc">
           从浙里办 APP 下载"基本养老历年参保证明"PDF，直接导入缴费记录
         </p>
+
+        <!-- 操作指引 -->
+        <div class="import-guide">
+          <div class="guide-toggle" @click="showGuide = !showGuide">
+            <span>{{ showGuide ? '▼' : '▶' }} 如何获取参保证明 PDF？</span>
+          </div>
+          <div v-if="showGuide" class="guide-steps">
+            <div class="guide-step">
+              <span class="step-num">1</span>
+              <span>打开<strong>浙里办 APP</strong>（或支付宝搜索"浙里办"小程序）</span>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">2</span>
+              <span>顶部搜索 <strong>「个人权益记录查询打印」</strong></span>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">3</span>
+              <span>完成人脸认证后，选择 <strong>「基本养老历年参保证明」</strong></span>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">4</span>
+              <span>点击下载 PDF 文件到手机</span>
+            </div>
+            <div class="guide-step">
+              <span class="step-num">5</span>
+              <span>回到本页面，点击下方按钮选择下载的 PDF</span>
+            </div>
+          </div>
+        </div>
+
         <input
           ref="fileInput"
           type="file"
@@ -330,6 +360,7 @@ const pensionStore = usePensionStore();
 const plansStore = usePlansStore();
 
 const showConfig = ref(false);
+const showGuide = ref(false);
 const pensionResult = ref<PensionCalculationResult | null>(null);
 const sufficiency = ref<SufficiencyResult | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -924,5 +955,50 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--danger, #ff4d4f);
   padding: 6px 0;
+}
+
+.import-guide {
+  margin-bottom: 16px;
+}
+
+.guide-toggle {
+  font-size: 14px;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 10px 12px;
+  background: rgba(74, 144, 217, 0.06);
+  border-radius: var(--radius);
+  user-select: none;
+}
+
+.guide-steps {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+
+.guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding: 6px 0;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
 }
 </style>
