@@ -119,6 +119,12 @@ const routes = [
     name: 'AvgWage',
     component: () => import('../views/AvgWage.vue'),
   },
+  // 灵活就业方案对比
+  {
+    path: '/pension/flex-compare',
+    name: 'FlexCompare',
+    component: () => import('../views/FlexCompare.vue'),
+  },
 ];
 
 const router = createRouter({

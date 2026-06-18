@@ -332,6 +332,17 @@
           未导入社平工资数据，导入后可精确计算缴费指数
         </div>
       </div>
+
+      <!-- 灵活就业方案对比入口 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🔧 灵活就业方案对比</span>
+          <router-link to="/pension/flex-compare" class="card-link">对比 &#8250;</router-link>
+        </div>
+        <div class="empty-hint">
+          对比不同缴费档次、年限、退休年龄下的养老金差异，选择最优方案
+        </div>
+      </div>
     </template>
 
     <!-- 配置弹窗 -->
