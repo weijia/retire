@@ -3,6 +3,10 @@ import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+// 获取 Git commit SHA（前7位）
+import { execSync } from 'child_process'
+const commitSha = execSync('git rev-parse --short HEAD').toString().trim()
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -50,6 +54,12 @@ export default defineConfig({
       // pdfjs-dist worker 路径别名
       'pdfjs-dist': path.resolve(__dirname, 'node_modules/pdfjs-dist'),
     },
+  },
+
+  define: {
+    '__APP_BUILD_TIME__': JSON.stringify(new Date().toISOString()),
+    '__APP_VERSION__': JSON.stringify(process.env.npm_package_version || 'dev'),
+    '__APP_COMMIT_SHA__': JSON.stringify(commitSha),
   },
 
   build: {

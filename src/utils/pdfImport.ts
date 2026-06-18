@@ -3,27 +3,31 @@ import type { PensionRecord } from '../types';
 // pdfjs-dist 动态导入（按需加载，减少初始包体积）
 async function getPdfjs() {
   const pdfjs = await import('pdfjs-dist');
+  return pdfjs;
+}
 
-  // 获取真正的 worker 代码
-  const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs?url');
-  const realWorkerUrl = pdfjsWorker.default;
-  const realWorkerResp = await fetch(realWorkerUrl);
-  const realWorkerCode = await realWorkerResp.text();
-
-  // 在前面注入 polyfill 后创建 Blob URL
-  // 解决旧版浏览器不支持 Promise.try 的问题
+/**
+ * 创建带 polyfill 的 Worker Blob URL
+ * 解决旧版浏览器不支持 Promise.try / Promise.withResolvers 的问题
+ */
+function getWorkerBlobUrl(workerCode: string): string {
   const polyfillCode = `
 if (typeof Promise.try !== 'function') {
   Promise.try = function(fn) {
     return new Promise(function(resolve) { resolve(fn()); });
   };
 }
+if (typeof Promise.withResolvers !== 'function') {
+  Promise.withResolvers = function() {
+    var resolve, reject;
+    var promise = new Promise(function(res, rej) { resolve = res; reject = rej; });
+    return { promise: promise, resolve: resolve, reject: reject };
+  };
+}
 `;
-  const combinedBlob = new Blob([polyfillCode + realWorkerCode], { type: 'application/javascript' });
-  const combinedUrl = URL.createObjectURL(combinedBlob);
-
-  pdfjs.GlobalWorkerOptions.workerSrc = combinedUrl;
-  return pdfjs;
+  const combinedCode = polyfillCode + '\n' + workerCode;
+  const workerBlob = new Blob([combinedCode], { type: 'application/javascript' });
+  return URL.createObjectURL(workerBlob);
 }
 
 /**
@@ -61,6 +65,17 @@ export async function parseZhelibaoPensionPdf(
   try {
     const arrayBuffer = await file.arrayBuffer();
     const pdfjs = await getPdfjs();
+
+    // 获取 worker 代码并注入 polyfill
+    const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs?url');
+    const realWorkerUrl = pdfjsWorker.default;
+    const realWorkerResp = await fetch(realWorkerUrl);
+    const realWorkerCode = await realWorkerResp.text();
+    const workerBlobUrl = getWorkerBlobUrl(realWorkerCode);
+
+    // 设置 worker Blob URL
+    pdfjs.GlobalWorkerOptions.workerSrc = workerBlobUrl;
+
     const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 
     let fullText = '';
