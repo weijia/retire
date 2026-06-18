@@ -209,7 +209,7 @@
         <input
           ref="fileInput"
           type="file"
-          accept=".pdf"
+          accept=".pdf,application/pdf"
           style="display: none"
           @change="handleFileChange"
         />
