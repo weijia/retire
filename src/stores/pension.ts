@@ -33,7 +33,7 @@ export const usePensionStore = defineStore('pension', () => {
 
   /** 总个人缴费额 */
   const totalPersonalPaid = computed(() => {
-    return records.value.reduce((sum, r) => sum + r.data.monthlyPersonal * r.data.monthsPaid, 0);
+    return records.value.reduce((sum, r) => sum + r.data.monthlyPersonal * (r.data.monthsPaid ?? 0), 0);
   });
 
   /** 按起始年份排序的阶段 */

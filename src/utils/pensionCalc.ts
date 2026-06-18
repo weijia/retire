@@ -118,7 +118,8 @@ export function calculatePension(
     transitionalRate: 1.3,
   };
 
-  const retirementAge = cfg.retirementAge;
+  const retirementAge = cfg.retirementAge || 60;
+  const deemedYears = cfg.deemedYears || 0;
   const retirementYear = currentYear + (retirementAge - currentAge);
 
   // ========== 第一步：逐年计算个人账户累积 ==========
@@ -219,7 +220,7 @@ export function calculatePension(
   // ========== 第五步：计算各项养老金 ==========
 
   // 1. 基础养老金
-  const totalYears = totalYearsPaid + cfg.deemedYears;
+  const totalYears = totalYearsPaid + deemedYears;
   const basicPension = retirementAvgWage * (1 + averageWageIndex) / 2 * totalYears * 0.01;
 
   // 2. 个人账户养老金
@@ -228,8 +229,8 @@ export function calculatePension(
 
   // 3. 过渡性养老金（中人）
   let transitionalPension = 0;
-  if (cfg.hasTransitionalPension && cfg.deemedYears > 0) {
-    transitionalPension = retirementAvgWage * cfg.deemedIndex * cfg.deemedYears * (cfg.transitionalRate / 100);
+  if (cfg.hasTransitionalPension && deemedYears > 0) {
+    transitionalPension = retirementAvgWage * (cfg.deemedIndex || 1.0) * deemedYears * ((cfg.transitionalRate || 1.3) / 100);
   }
 
   // 月养老金总额
@@ -253,7 +254,7 @@ export function calculatePension(
     personalPension: Math.round(personalPension),
     transitionalPension: Math.round(transitionalPension),
     totalYearsPaid: Math.round(totalYearsPaid * 10) / 10,
-    totalDeemedYears: cfg.deemedYears,
+    totalDeemedYears: deemedYears,
     totalYears: Math.round(totalYears * 10) / 10,
     averageWageIndex: Math.round(averageWageIndex * 100) / 100,
     personalAccountBalance: Math.round(accountBalance),
