@@ -60,7 +60,10 @@ export async function parseZhelibaoPensionPdf(
     if (totalYearsMatch) result.totalYears = totalYearsMatch[1];
 
     // 解析历年缴费记录
+    console.log('[PDF Debug] fullText length:', fullText.length);
+    console.log('[PDF Debug] first 500 chars:', fullText.substring(0, 500));
     const rawRecords = parseRecordsFromText(fullText);
+    console.log('[PDF Debug] rawRecords count:', rawRecords.length);
     const mergedRecords = mergeRecordsByYear(rawRecords);
 
     result.records = mergedRecords;
