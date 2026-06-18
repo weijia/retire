@@ -1,5 +1,12 @@
 import type { PensionRecord } from '../types';
 
+// Polyfill: Promise.try 在旧版浏览器中不可用
+if (!(Promise as any).try) {
+  (Promise as any).try = function <T>(fn: () => T | Promise<T>): Promise<T> {
+    return new Promise((resolve) => resolve(fn()));
+  };
+}
+
 // pdfjs-dist 动态导入（按需加载，减少初始包体积）
 async function getPdfjs() {
   const pdfjs = await import('pdfjs-dist');
