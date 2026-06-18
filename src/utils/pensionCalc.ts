@@ -139,7 +139,8 @@ export function calculatePension(
     const wageIndex = d.avgWage > 0 ? d.monthlyBase / d.avgWage : 1.0;
 
     // 当年个人缴费总额
-    const personalContribution = d.monthlyPersonal * d.monthsPaid;
+    const monthsPaid = d.monthsPaid ?? 0;
+    const personalContribution = d.monthlyPersonal * monthsPaid;
 
     // 计入个人账户（当年缴费在年底一次性计入，然后计算利息）
     accountBalance += personalContribution;
@@ -150,9 +151,9 @@ export function calculatePension(
     accountBalance += interest;
 
     // 累计统计
-    totalYearsPaid += d.monthsPaid / 12;
-    totalMonthsPaid += d.monthsPaid;
-    weightedIndexSum += wageIndex * d.monthsPaid;
+    totalYearsPaid += monthsPaid / 12;
+    totalMonthsPaid += monthsPaid;
+    weightedIndexSum += wageIndex * monthsPaid;
 
     yearlyDetails.push({
       year,

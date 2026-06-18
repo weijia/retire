@@ -25,7 +25,10 @@ export const usePensionStore = defineStore('pension', () => {
 
   /** 总缴费年数 */
   const totalYearsPaid = computed(() => {
-    return records.value.reduce((sum, r) => sum + r.data.monthsPaid / 12, 0);
+    return records.value.reduce((sum, r) => {
+      const months = r.data.monthsPaid ?? 0;
+      return sum + months / 12;
+    }, 0);
   });
 
   /** 总个人缴费额 */
