@@ -117,8 +117,9 @@ export function calculateFlexPlan(
     flexBasePercent: plan.basePercent,
   };
 
-  // 展开灵活就业记录
-  const flexRecords = expandPhasesToRecords([flexPhase], plan.retirementAge, avgWageMap);
+  // 展开灵活就业记录（retirementYear = 当前年份 + 退休年龄 - 当前年龄）
+  const retirementYear = currentYear + (plan.retirementAge - currentAge);
+  const flexRecords = expandPhasesToRecords([flexPhase], retirementYear, avgWageMap);
 
   // 合并已有记录和灵活就业记录
   const mergedRecords = [...existingRecords];
