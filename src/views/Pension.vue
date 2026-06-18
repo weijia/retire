@@ -122,6 +122,7 @@
             <span>缴费基数</span>
             <span>社平工资</span>
             <span>缴费指数</span>
+            <span>当年缴入</span>
             <span>个人账户</span>
           </div>
           <div v-for="row in pensionResult!.yearlyDetails" :key="row.year" class="table-row">
@@ -129,6 +130,7 @@
             <span>{{ formatMoney(row.monthlyBase) }}</span>
             <span>{{ formatMoney(row.avgWage) }}</span>
             <span>{{ row.wageIndex }}</span>
+            <span>{{ formatMoney(row.personalContribution) }}</span>
             <span>{{ formatMoney(row.accountBalanceEOY) }}</span>
           </div>
         </div>
