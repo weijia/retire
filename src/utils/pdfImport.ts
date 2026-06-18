@@ -100,37 +100,34 @@ function parseRecordsFromText(text: string): Array<{
     monthsPaid: number;
   }> = [];
 
-  const lines = text.split('\n');
+  // PDF 文本可能没有换行，所有记录连在一起
+  // 使用全局匹配，每次匹配一条记录（非贪婪模式）
+  const pattern = /(\S+?)\s+(\d{4})\s+(\d{6})\s*-\s*(\d{6})\s+([\d,\.]+)\s+([^\d]*?)(?=\S+\s+\d{4}\s+\d{6}|$)/g;
 
-  for (const line of lines) {
-    const match = line.match(
-      /(\S+?)\s+(\d{4})\s+(\d{6})\s*-\s*(\d{6})\s+([\d,\.]+)\s+(.*)/
-    );
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    const year = parseInt(match[2], 10);
+    const startMonth = match[3];
+    const endMonth = match[4];
+    const baseStr = match[5].replace(/,/g, '');
+    const monthlyBase = parseFloat(baseStr);
+    const employer = match[6].trim();
 
-    if (match) {
-      const year = parseInt(match[2], 10);
-      const startMonth = match[3];
-      const endMonth = match[4];
-      const baseStr = match[5].replace(/,/g, '');
-      const monthlyBase = parseFloat(baseStr);
-      const employer = match[6].trim();
+    const startY = parseInt(startMonth.substring(0, 4), 10);
+    const startM = parseInt(startMonth.substring(4, 6), 10);
+    const endY = parseInt(endMonth.substring(0, 4), 10);
+    const endM = parseInt(endMonth.substring(4, 6), 10);
+    const monthsPaid = (endY - startY) * 12 + (endM - startM) + 1;
 
-      const startY = parseInt(startMonth.substring(0, 4), 10);
-      const startM = parseInt(startMonth.substring(4, 6), 10);
-      const endY = parseInt(endMonth.substring(0, 4), 10);
-      const endM = parseInt(endMonth.substring(4, 6), 10);
-      const monthsPaid = (endY - startY) * 12 + (endM - startM) + 1;
-
-      if (!isNaN(year) && !isNaN(monthlyBase) && monthlyBase > 0) {
-        records.push({
-          year,
-          startMonth,
-          endMonth,
-          monthlyBase,
-          employer,
-          monthsPaid: Math.max(1, monthsPaid),
-        });
-      }
+    if (!isNaN(year) && !isNaN(monthlyBase) && monthlyBase > 0) {
+      records.push({
+        year,
+        startMonth,
+        endMonth,
+        monthlyBase,
+        employer,
+        monthsPaid: Math.max(1, monthsPaid),
+      });
     }
   }
 
