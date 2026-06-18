@@ -3,7 +3,7 @@ import type { PensionRecord } from '../types';
 // pdfjs-dist 动态导入（按需加载，减少初始包体积）
 async function getPdfjs() {
   const pdfjs = await import('pdfjs-dist');
-  const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.entry.js?url');
+  const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.js?url');
   pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
   return pdfjs;
 }
