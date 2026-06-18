@@ -421,10 +421,16 @@ const hasResult = computed(() => !!pensionResult.value);
 function calcPension() {
   if (!userStore.config) return;
   const le = lifeExpectancy.value || (userStore.config.data.gender === 'male' ? 73.6 : 79.4) + currentAge.value;
+  // 构建社平工资 Map
+  const avgWageMap = new Map<number, number>();
+  for (const y of avgWageStore.years.value) {
+    avgWageMap.set(y.year, y.monthlyAvgWage);
+  }
   pensionResult.value = pensionStore.computePension(
     currentAge.value,
     le,
-    new Date().getFullYear()
+    new Date().getFullYear(),
+    avgWageMap
   );
 
   sufficiency.value = pensionStore.computeSufficiency(

@@ -105,7 +105,8 @@ export function calculatePension(
   config: PensionConfig | null,
   currentAge: number,
   lifeExpectancy: number,
-  currentYear: number
+  currentYear: number,
+  avgWageMap?: Map<number, number> // 年份 -> 月社平工资
 ): PensionCalculationResult {
   const cfg = config?.data || {
     pensionType: 'basic' as const,
@@ -135,8 +136,11 @@ export function calculatePension(
     const d = record.data;
     const year = d.year;
 
+    // 优先使用导入的社平工资数据
+    const avgWage = avgWageMap?.get(year) ?? d.avgWage;
+
     // 当年的缴费指数 = 缴费基数 / 社平工资
-    const wageIndex = d.avgWage > 0 ? d.monthlyBase / d.avgWage : 1.0;
+    const wageIndex = avgWage > 0 ? d.monthlyBase / avgWage : 1.0;
 
     // 当年个人缴费总额
     const monthsPaid = d.monthsPaid ?? 0;
@@ -158,7 +162,7 @@ export function calculatePension(
     yearlyDetails.push({
       year,
       monthlyBase: d.monthlyBase,
-      avgWage: d.avgWage,
+      avgWage,
       wageIndex: Math.round(wageIndex * 100) / 100,
       monthsPaid: d.monthsPaid,
       personalContribution,
@@ -187,9 +191,11 @@ export function calculatePension(
   // ========== 第四步：计算退休时社平工资 ==========
 
   // 取最后一条记录的社平工资作为基准，或默认 8000
-  const lastAvgWage = sortedRecords.length > 0
-    ? sortedRecords[sortedRecords.length - 1].data.avgWage
-    : 8000;
+  const lastYear = sortedRecords.length > 0
+    ? sortedRecords[sortedRecords.length - 1].data.year
+    : currentYear;
+  const lastAvgWage = avgWageMap?.get(lastYear)
+    ?? (sortedRecords.length > 0 ? sortedRecords[sortedRecords.length - 1].data.avgWage : 8000);
 
   // 推算到退休时的社平工资（按最近几年的平均增长率）
   const recentYears = sortedRecords.slice(-3);
@@ -197,8 +203,10 @@ export function calculatePension(
   if (recentYears.length >= 2) {
     const growthRates = [];
     for (let i = 1; i < recentYears.length; i++) {
-      const prev = recentYears[i - 1].data.avgWage;
-      const curr = recentYears[i].data.avgWage;
+      const prevYear = recentYears[i - 1].data.year;
+      const currYear = recentYears[i].data.year;
+      const prev = avgWageMap?.get(prevYear) ?? recentYears[i - 1].data.avgWage;
+      const curr = avgWageMap?.get(currYear) ?? recentYears[i].data.avgWage;
       if (prev > 0) growthRates.push((curr - prev) / prev);
     }
     if (growthRates.length > 0) {

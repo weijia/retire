@@ -233,11 +233,12 @@ export const usePensionStore = defineStore('pension', () => {
   function computePension(
     currentAge: number,
     lifeExpectancy: number,
-    currentYear: number
+    currentYear: number,
+    avgWageMap?: Map<number, number>
   ): PensionCalculationResult {
     // 优先使用阶段展开的记录
     const recordsToUse = phases.value.length > 0 ? expandedRecords.value : records.value;
-    return calculatePension(recordsToUse, config.value, currentAge, lifeExpectancy, currentYear);
+    return calculatePension(recordsToUse, config.value, currentAge, lifeExpectancy, currentYear, avgWageMap);
   }
 
   /** 计算充足性 */
