@@ -113,6 +113,12 @@ const routes = [
     name: 'PensionHelp',
     component: () => import('../views/PensionHelp.vue'),
   },
+  // 社平工资路由
+  {
+    path: '/avg-wage',
+    name: 'AvgWage',
+    component: () => import('../views/AvgWage.vue'),
+  },
 ];
 
 const router = createRouter({

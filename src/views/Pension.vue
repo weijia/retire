@@ -298,6 +298,27 @@
           </div>
         </div>
       </div>
+
+      <!-- 社平工资入口 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📊 社平工资</span>
+          <router-link to="/avg-wage" class="card-link">管理 &#8250;</router-link>
+        </div>
+        <div v-if="avgWageStore.dataset.value" class="records-summary">
+          <div class="summary-item">
+            <span class="summary-label">数据年份</span>
+            <span class="summary-value">{{ avgWageStore.years.value[0]?.year }} - {{ avgWageStore.years.value[avgWageStore.years.value.length - 1]?.year }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">记录条数</span>
+            <span class="summary-value">{{ avgWageStore.years.value.length }} 年</span>
+          </div>
+        </div>
+        <div v-else class="empty-hint">
+          未导入社平工资数据，导入后可精确计算缴费指数
+        </div>
+      </div>
     </template>
 
     <!-- 配置弹窗 -->
@@ -349,6 +370,7 @@ import { useUserStore } from '../stores/user';
 import { useHealthStore } from '../stores/health';
 import { usePensionStore } from '../stores/pension';
 import { usePlansStore } from '../stores/plans';
+import { useAvgWageStore } from '../stores/avgWage';
 import { formatMoney } from '../utils/format';
 import { getPayoutMonths } from '../utils/pensionCalc';
 import type { PensionCalculationResult, SufficiencyResult } from '../utils/pensionCalc';
@@ -358,6 +380,7 @@ const userStore = useUserStore();
 const healthStore = useHealthStore();
 const pensionStore = usePensionStore();
 const plansStore = usePlansStore();
+const avgWageStore = useAvgWageStore();
 
 const showConfig = ref(false);
 const showGuide = ref(false);
@@ -467,6 +490,7 @@ onMounted(async () => {
   await pensionStore.loadRecords();
   await pensionStore.loadPhases();
   await plansStore.loadPlans();
+  await avgWageStore.loadDataset();
 
   if (pensionStore.config) {
     pensionConfig.value = { ...pensionStore.config.data };

@@ -311,6 +311,29 @@ export interface GiteeSyncConfig extends BaseDocument {
   };
 }
 
+// ==================== 社平工资相关类型 ====================
+
+// 单年社平工资数据
+export interface AvgWageYearData {
+  year: number;              // 年份
+  avgWage: number;           // 年平均工资（元/年）
+  monthlyAvgWage: number;    // 月平均工资（元/月）
+  source?: string;           // 数据来源
+  note?: string;             // 备注
+}
+
+// 社平工资数据集（按城市/地区）
+export interface AvgWageDataSet extends BaseDocument {
+  type: 'avg_wage_dataset';
+  data: {
+    city: string;            // 城市名称，如"杭州市"
+    province: string;        // 省份，如"浙江省"
+    scope: 'city' | 'province' | 'national'; // 统计范围
+    years: AvgWageYearData[]; // 历年数据
+    description?: string;     // 说明
+  };
+}
+
 // 所有文档类型的联合类型
 export type AppDocument =
   | UserConfig
@@ -322,4 +345,5 @@ export type AppDocument =
   | LifeExpectancySnapshot
   | PensionRecord
   | PensionConfig
-  | GiteeSyncConfig;
+  | GiteeSyncConfig
+  | AvgWageDataSet;
