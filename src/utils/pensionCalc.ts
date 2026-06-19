@@ -247,23 +247,20 @@ export function calculatePension(
     lastKnownYear = currentYear;
   }
 
-  // 推算到退休时的社平工资（按最近几年的平均增长率）
+  // 推算到退休时的社平工资
+  // 使用全部历史数据计算复合年增长率（CAGR），比只看最近3年更稳定
   let avgGrowthRate = 0.05; // 默认 5%
   if (avgWageMap && avgWageMap.size >= 2) {
     const sortedWageYears = Array.from(avgWageMap.entries())
       .map(([year, wage]) => ({ year, wage }))
       .sort((a, b) => a.year - b.year);
-    const recentWages = sortedWageYears.slice(-3);
-    if (recentWages.length >= 2) {
-      const growthRates = [];
-      for (let i = 1; i < recentWages.length; i++) {
-        const prev = recentWages[i - 1].wage;
-        const curr = recentWages[i].wage;
-        if (prev > 0) growthRates.push((curr - prev) / prev);
-      }
-      if (growthRates.length > 0) {
-        avgGrowthRate = growthRates.reduce((a, b) => a + b, 0) / growthRates.length;
-      }
+
+    // 取最早和最晚的数据计算 CAGR
+    const first = sortedWageYears[0];
+    const last = sortedWageYears[sortedWageYears.length - 1];
+    const yearSpan = last.year - first.year;
+    if (yearSpan > 0 && first.wage > 0) {
+      avgGrowthRate = Math.pow(last.wage / first.wage, 1 / yearSpan) - 1;
     }
   }
 
