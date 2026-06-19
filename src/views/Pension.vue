@@ -63,7 +63,7 @@
           <div class="result-amount">{{ formatMoney(pensionResult!.monthlyPension) }}<span class="result-unit">/月</span></div>
           <div class="result-sub">年养老金 {{ formatMoney(pensionResult!.annualPension) }}</div>
           <div v-if="currentMonthlyWage > 0 && pensionInTodayWage > 0" class="result-compare">
-            折算现在购买力约 {{ formatMoney(pensionInTodayWage) }}/月，相当于现在月薪的 {{ wageCompareRatio }}%
+            折算现在购买力约 {{ formatMoney(pensionInTodayWage) }}/月（现在月薪 {{ formatMoney(currentMonthlyWage) }} 的 {{ wageCompareRatio }}%）
           </div>
         </div>
         <div class="result-breakdown">

@@ -16,7 +16,7 @@
         共 {{ yearsReceivable }}年 · 总额 {{ formatMoney(totalPension) }}
       </div>
       <div v-if="pensionInTodayMoney > 0" class="pension-compare">
-        折算现在购买力约 {{ formatMoney(pensionInTodayMoney) }}/月，相当于现在月薪的 {{ wageCompareRatio }}%
+        折算现在购买力约 {{ formatMoney(pensionInTodayMoney) }}/月（现在月薪 {{ formatMoney(currentMonthlyWage) }} 的 {{ wageCompareRatio }}%）
       </div>
     </div>
   </div>
