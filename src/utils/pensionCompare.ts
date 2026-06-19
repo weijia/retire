@@ -33,6 +33,8 @@ export interface FlexPlanResult {
   payoutMonths: number;        // 计发月数
   totalYears: number;          // 总缴费年限（含视同）
   avgGrowthRate: number;       // 社平工资增长率
+  replacementRate: number;    // 替代率（月养老金 / 当前月工资）
+  currentMonthlyWage: number;  // 当前月工资（用于替代率计算）
 }
 
 /**
@@ -162,6 +164,12 @@ export function calculateFlexPlan(
     totalPersonalPaid += fr.data.monthlyPersonal * fr.data.monthsPaid;
   }
 
+  // 计算当前月工资（取最近一年缴费记录的月基数）
+  const sortedExisting = [...existingRecords].sort((a, b) => b.data.year - a.data.year);
+  const currentMonthlyWage = sortedExisting.length > 0
+    ? sortedExisting[0].data.monthlyBase
+    : (avgWageMap ? [...avgWageMap.values()].pop() || 8000 : 8000);
+
   return {
     plan,
     monthlyPension: result.monthlyPension,
@@ -178,6 +186,10 @@ export function calculateFlexPlan(
     payoutMonths: result.payoutMonths,
     totalYears: result.totalYears,
     avgGrowthRate: result.avgGrowthRate,
+    replacementRate: currentMonthlyWage > 0
+      ? Math.round(result.monthlyPension / currentMonthlyWage * 1000) / 10
+      : 0,
+    currentMonthlyWage,
   };
 }
 

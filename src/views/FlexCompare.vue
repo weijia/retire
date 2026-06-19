@@ -68,7 +68,7 @@
               <th>退休年龄</th>
               <th>个人总缴费</th>
               <th>月养老金</th>
-              <th>年养老金</th>
+              <th>替代率</th>
               <th>养老金总额</th>
               <th>投入产出比</th>
             </tr>
@@ -85,12 +85,22 @@
               <td>{{ r.plan.retirementAge }}岁</td>
               <td>{{ formatMoney(r.totalPersonalPaid) }}</td>
               <td class="highlight">{{ formatMoney(r.monthlyPension) }}</td>
-              <td>{{ formatMoney(r.annualPension) }}</td>
+              <td class="replacement" :class="{ good: r.replacementRate >= 70, warn: r.replacementRate >= 40 && r.replacementRate < 70, bad: r.replacementRate < 40 }">
+                {{ r.replacementRate }}%
+              </td>
               <td>{{ formatMoney(r.totalPension) }}</td>
               <td>{{ r.roi }}x</td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- 替代率说明 -->
+      <div class="replacement-note">
+        替代率 = 月养老金 ÷ 当前月工资（{{ formatMoney(currentMonthlyWage) }}）
+        <span class="note-good">≥70% 充足</span>
+        <span class="note-warn">40-70% 一般</span>
+        <span class="note-bad">&lt;40% 不足</span>
       </div>
 
       <!-- 最佳方案提示 -->
@@ -215,6 +225,13 @@ const avgWageMap = computed(() => {
 
 const sortedResults = computed(() => {
   return [...results.value].sort((a, b) => b.monthlyPension - a.monthlyPension);
+});
+
+const currentMonthlyWage = computed(() => {
+  if (results.value.length > 0 && results.value[0].currentMonthlyWage > 0) {
+    return results.value[0].currentMonthlyWage;
+  }
+  return 0;
 });
 
 function calculate() {
@@ -428,6 +445,44 @@ onMounted(async () => {
 .highlight {
   font-weight: 600;
   color: #4A90D9;
+}
+
+.replacement {
+  font-weight: 600;
+}
+
+.replacement.good {
+  color: #52c41a;
+}
+
+.replacement.warn {
+  color: #faad14;
+}
+
+.replacement.bad {
+  color: #ff4d4f;
+}
+
+.replacement-note {
+  font-size: 11px;
+  color: #999;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.note-good {
+  color: #52c41a;
+  margin-left: 8px;
+}
+
+.note-warn {
+  color: #faad14;
+  margin-left: 8px;
+}
+
+.note-bad {
+  color: #ff4d4f;
+  margin-left: 8px;
 }
 
 .best-plan {
