@@ -62,6 +62,9 @@
         <div class="result-main">
           <div class="result-amount">{{ formatMoney(pensionResult!.monthlyPension) }}<span class="result-unit">/月</span></div>
           <div class="result-sub">年养老金 {{ formatMoney(pensionResult!.annualPension) }}</div>
+          <div v-if="currentMonthlyWage > 0" class="result-compare">
+            相当于现在月薪 {{ formatMoney(currentMonthlyWage) }} 的 {{ wageCompareRatio }}%
+          </div>
         </div>
         <div class="result-breakdown">
           <div class="breakdown-row">
@@ -447,6 +450,18 @@ const lifeExpectancy = computed(() => {
 
 const hasResult = computed(() => !!pensionResult.value);
 
+// 当前月工资（取最近一年缴费记录的月基数）
+const currentMonthlyWage = computed(() => {
+  const sorted = [...pensionStore.records].sort((a, b) => b.data.year - a.data.year);
+  return sorted.length > 0 ? sorted[0].data.monthlyBase : 0;
+});
+
+// 月养老金相当于现在月薪的百分比
+const wageCompareRatio = computed(() => {
+  if (!pensionResult.value || currentMonthlyWage.value <= 0) return 0;
+  return Math.round(pensionResult.value.monthlyPension / currentMonthlyWage.value * 1000) / 10;
+});
+
 function calcPension() {
   if (!userStore.config) return;
   const le = lifeExpectancy.value || (userStore.config.data.gender === 'male' ? 73.6 : 79.4) + currentAge.value;
@@ -667,6 +682,16 @@ onMounted(async () => {
   font-size: 13px;
   opacity: 0.9;
   margin-top: 4px;
+}
+
+.result-compare {
+  font-size: 13px;
+  color: #4A90D9;
+  margin-top: 6px;
+  padding: 4px 10px;
+  background: #e6f0ff;
+  border-radius: 4px;
+  display: inline-block;
 }
 
 .result-breakdown {
