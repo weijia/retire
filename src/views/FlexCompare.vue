@@ -87,7 +87,7 @@
               <td>{{ formatMoney(r.totalPersonalPaid) }}</td>
               <td class="highlight">{{ formatMoney(r.monthlyPension) }}</td>
               <td class="wage-compare">
-                {{ formatMoney(r.monthlyPension) }}
+                {{ formatMoney(r.pensionInTodayWage) }}
                 <span class="wage-note">/ {{ formatMoney(currentMonthlyWage) }}</span>
               </td>
               <td>{{ formatMoney(r.totalPension) }}</td>
@@ -108,7 +108,7 @@
 
       <!-- 说明 -->
       <div class="compare-note">
-        相当于现在月薪 = 月养老金 ÷ 当前月工资（{{ formatMoney(currentMonthlyWage) }}）的比值
+        相当于现在月薪 = 退休时月养老金按社平工资比例折算到现在的购买力 ÷ 当前月工资（{{ formatMoney(currentMonthlyWage) }}）
         ｜ 投入产出比 = 养老金总额 ÷ 个人总缴费，越大越划算
       </div>
 

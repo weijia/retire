@@ -62,8 +62,8 @@
         <div class="result-main">
           <div class="result-amount">{{ formatMoney(pensionResult!.monthlyPension) }}<span class="result-unit">/月</span></div>
           <div class="result-sub">年养老金 {{ formatMoney(pensionResult!.annualPension) }}</div>
-          <div v-if="currentMonthlyWage > 0" class="result-compare">
-            相当于现在月薪 {{ formatMoney(currentMonthlyWage) }} 的 {{ wageCompareRatio }}%
+          <div v-if="currentMonthlyWage > 0 && pensionInTodayWage > 0" class="result-compare">
+            折算现在购买力约 {{ formatMoney(pensionInTodayWage) }}/月，相当于现在月薪的 {{ wageCompareRatio }}%
           </div>
         </div>
         <div class="result-breakdown">
@@ -456,10 +456,25 @@ const currentMonthlyWage = computed(() => {
   return sorted.length > 0 ? sorted[0].data.monthlyBase : 0;
 });
 
-// 月养老金相当于现在月薪的百分比
+// 当前社平工资（从 avgWageMap 中取最新年份）
+const currentAvgWage = computed(() => {
+  const years = avgWageStore.years.value;
+  if (years.length === 0) return 0;
+  const sorted = [...years].sort((a, b) => b.year - a.year);
+  return sorted[0].monthlyAvgWage;
+});
+
+// 月养老金折算到现在的购买力水平
+// 相当于现在月薪 = 退休时月养老金 × (现在社平工资 / 退休时社平工资)
+const pensionInTodayWage = computed(() => {
+  if (!pensionResult.value || currentAvgWage.value <= 0 || pensionResult.value.retirementAvgWage <= 0) return 0;
+  return Math.round(pensionResult.value.monthlyPension * currentAvgWage.value / pensionResult.value.retirementAvgWage);
+});
+
+// 相当于现在月薪的百分比
 const wageCompareRatio = computed(() => {
-  if (!pensionResult.value || currentMonthlyWage.value <= 0) return 0;
-  return Math.round(pensionResult.value.monthlyPension / currentMonthlyWage.value * 1000) / 10;
+  if (currentMonthlyWage.value <= 0 || pensionInTodayWage.value <= 0) return 0;
+  return Math.round(pensionInTodayWage.value / currentMonthlyWage.value * 1000) / 10;
 });
 
 function calcPension() {

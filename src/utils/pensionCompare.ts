@@ -33,8 +33,9 @@ export interface FlexPlanResult {
   payoutMonths: number;        // 计发月数
   totalYears: number;          // 总缴费年限（含视同）
   avgGrowthRate: number;       // 社平工资增长率
-  replacementRate: number;    // 替代率（月养老金 / 当前月工资）
+  replacementRate: number;    // 替代率（折算后月养老金 / 当前月工资）
   currentMonthlyWage: number;  // 当前月工资（用于替代率计算）
+  pensionInTodayWage: number;  // 折算到现在的购买力水平的月养老金
 }
 
 /**
@@ -164,11 +165,23 @@ export function calculateFlexPlan(
     totalPersonalPaid += fr.data.monthlyPersonal * fr.data.monthsPaid;
   }
 
-  // 计算当前月工资（取最近一年缴费记录的月基数）
+  // 计算当前月工资和当前社平工资
   const sortedExisting = [...existingRecords].sort((a, b) => b.data.year - a.data.year);
   const currentMonthlyWage = sortedExisting.length > 0
     ? sortedExisting[0].data.monthlyBase
     : (avgWageMap ? [...avgWageMap.values()].pop() || 8000 : 8000);
+
+  // 当前社平工资（avgWageMap 中最新年份）
+  let currentAvgWage = 8000;
+  if (avgWageMap && avgWageMap.size > 0) {
+    const entries = Array.from(avgWageMap.entries()).sort((a, b) => b[0] - a[0]);
+    if (entries.length > 0) currentAvgWage = entries[0][1];
+  }
+
+  // 折算到现在的购买力
+  const pensionInTodayWage = (result.retirementAvgWage > 0 && currentAvgWage > 0)
+    ? Math.round(result.monthlyPension * currentAvgWage / result.retirementAvgWage)
+    : result.monthlyPension;
 
   return {
     plan,
@@ -187,9 +200,10 @@ export function calculateFlexPlan(
     totalYears: result.totalYears,
     avgGrowthRate: result.avgGrowthRate,
     replacementRate: currentMonthlyWage > 0
-      ? Math.round(result.monthlyPension / currentMonthlyWage * 1000) / 10
+      ? Math.round(pensionInTodayWage / currentMonthlyWage * 1000) / 10
       : 0,
     currentMonthlyWage,
+    pensionInTodayWage,
   };
 }
 
