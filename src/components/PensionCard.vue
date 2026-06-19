@@ -15,6 +15,9 @@
       <div class="pension-sub">
         共 {{ yearsReceivable }}年 · 总额 {{ formatMoney(totalPension) }}
       </div>
+      <div v-if="currentMonthlyWage > 0" class="pension-compare">
+        相当于现在月薪 {{ formatMoney(currentMonthlyWage) }} 的 {{ wageCompareRatio }}%
+      </div>
     </div>
   </div>
 </template>
@@ -24,15 +27,19 @@ import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { useHealthStore } from '../stores/health';
 import { usePensionStore } from '../stores/pension';
+import { useAvgWageStore } from '../stores/avgWage';
 import { formatMoney } from '../utils/format';
 
 const userStore = useUserStore();
 const healthStore = useHealthStore();
 const pensionStore = usePensionStore();
+const avgWageStore = useAvgWageStore();
 
 const monthlyPension = ref(0);
 const totalPension = ref(0);
 const yearsReceivable = ref(0);
+const currentMonthlyWage = ref(0);
+const wageCompareRatio = ref(0);
 
 const hasData = computed(() => pensionStore.hasConfig || pensionStore.records.length > 0);
 
@@ -47,7 +54,7 @@ const lifeExpectancy = computed(() => {
     currentAge.value,
     userStore.config.data.gender
   );
-  return result.adjustedYears + currentAge.value;
+  return result.adjustedTotalAge;
 });
 
 onMounted(async () => {
@@ -56,13 +63,29 @@ onMounted(async () => {
   await healthStore.loadProfile();
   await pensionStore.loadConfig();
   await pensionStore.loadRecords();
+  await pensionStore.loadPhases();
+  await avgWageStore.loadDataset();
 
   if (userStore.config) {
     const le = lifeExpectancy.value || (userStore.config.data.gender === 'male' ? 73.6 : 79.4) + currentAge.value;
-    const result = pensionStore.computePension(currentAge.value, le, new Date().getFullYear());
+
+    // 构建社平工资 Map（与 Pension.vue 一致）
+    const avgWageMap = new Map<number, number>();
+    for (const y of avgWageStore.years.value) {
+      avgWageMap.set(y.year, y.monthlyAvgWage);
+    }
+
+    const result = pensionStore.computePension(currentAge.value, le, new Date().getFullYear(), avgWageMap);
     monthlyPension.value = result.monthlyPension;
     totalPension.value = result.totalPension;
     yearsReceivable.value = result.yearsReceivable;
+
+    // 当前月工资
+    const sorted = [...pensionStore.records].sort((a, b) => b.data.year - a.data.year);
+    currentMonthlyWage.value = sorted.length > 0 ? sorted[0].data.monthlyBase : 0;
+    wageCompareRatio.value = currentMonthlyWage.value > 0
+      ? Math.round(result.monthlyPension / currentMonthlyWage.value * 1000) / 10
+      : 0;
   }
 });
 </script>
@@ -117,5 +140,15 @@ onMounted(async () => {
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 4px;
+}
+
+.pension-compare {
+  font-size: 12px;
+  color: var(--primary);
+  margin-top: 6px;
+  padding: 3px 8px;
+  background: #e6f0ff;
+  border-radius: 4px;
+  display: inline-block;
 }
 </style>
