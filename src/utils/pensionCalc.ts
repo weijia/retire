@@ -173,9 +173,37 @@ export function calculatePension(
 
   // ========== 第二步：当前余额 + 计算到退休时的个人账户增长 ==========
 
-  // 将用户当前实际个人账户余额加上（替换历年推算的累积值）
-  // 因为历年推算可能不准确，用户填写的当前余额更可信
-  accountBalance = cfg.currentPensionBalance || accountBalance;
+  // 如果用户填写了当前实际个人账户余额，用它替代历年推算的累积值
+  // 但保留灵活就业等后续阶段的缴费贡献
+  if (cfg.currentPensionBalance && cfg.currentPensionBalance > 0) {
+    // 找到最后一条"已有"记录（PDF导入的，非阶段展开的）
+    // 灵活就业阶段的记录从 currentPensionBalance 之后继续累积
+    const lastPdfYear = sortedRecords
+      .filter(r => !r._id.startsWith('phase_'))
+      .reduce((max, r) => Math.max(max, r.data.year), 0);
+
+    // 重新计算：从 currentPensionBalance 开始，只计算灵活就业阶段的贡献
+    if (lastPdfYear > 0 && lastPdfYear < sortedRecords[sortedRecords.length - 1]?.data.year) {
+      accountBalance = cfg.currentPensionBalance;
+      // currentPensionBalance 到 lastPdfYear+1 之间的利息
+      for (let y = lastPdfYear + 1; y <= currentYear; y++) {
+        const interestRate = getInterestRate(y) / 100;
+        accountBalance += accountBalance * interestRate;
+      }
+      // 从 lastPdfYear+1 开始重新累积后续阶段的缴费
+      for (const record of sortedRecords) {
+        if (record.data.year <= lastPdfYear) continue;
+        const d = record.data;
+        const monthsPaid = d.monthsPaid ?? 0;
+        accountBalance += d.monthlyPersonal * monthsPaid;
+        const interestRate = getInterestRate(d.year) / 100;
+        accountBalance += accountBalance * interestRate;
+      }
+    } else {
+      // 没有后续阶段，直接用 currentPensionBalance
+      accountBalance = cfg.currentPensionBalance;
+    }
+  }
 
   // 如果还有到退休前的年份，按假设利率继续增长
   const lastRecordYear = sortedRecords.length > 0
