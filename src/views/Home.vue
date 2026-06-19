@@ -22,7 +22,7 @@
         <CountDown
           :birthYear="userStore.config!.data.birthYear"
           :targetAge="userStore.config!.data.targetRetireAge"
-          :label="hasReachedTargetRetire ? '领退休金年' : '目标退休年'"
+          :label="hasReachedTargetRetire ? '已停止工作' : '距停止工作'"
           :showAgeAdjust="!hasReachedTargetRetire"
           :minAge="40"
           :maxAge="70"
