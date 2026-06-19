@@ -227,7 +227,7 @@ export function calculatePension(
 
   // 始终从 avgWageMap 中最新年份的数据推算，不依赖记录中的值
   let lastAvgWage = 8000;
-  let lastKnownYear = currentYear;
+  let lastKnownYear = 0;
   if (avgWageMap && avgWageMap.size > 0) {
     // 取 avgWageMap 中最新的年份
     for (const [year, wage] of avgWageMap.entries()) {
@@ -240,6 +240,11 @@ export function calculatePension(
     // 没有 avgWageMap 时用记录中的值
     lastAvgWage = sortedRecords[sortedRecords.length - 1].data.avgWage;
     lastKnownYear = sortedRecords[sortedRecords.length - 1].data.year;
+  }
+
+  // 如果没有找到任何数据，用当前年份
+  if (lastKnownYear === 0) {
+    lastKnownYear = currentYear;
   }
 
   // 推算到退休时的社平工资（按最近几年的平均增长率）
