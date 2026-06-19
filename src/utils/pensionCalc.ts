@@ -60,6 +60,8 @@ export interface PensionCalculationResult {
   averageWageIndex: number;         // 平均缴费工资指数
   personalAccountBalance: number;   // 退休时个人账户余额
   retirementAvgWage: number;        // 退休时上年度社平工资
+  payoutMonths: number;             // 计发月数
+  avgGrowthRate: number;            // 社平工资增长率
 
   // 历年明细
   yearlyDetails: YearlyDetail[];
@@ -223,18 +225,26 @@ export function calculatePension(
 
   // ========== 第四步：计算退休时社平工资 ==========
 
-  // 取最后一条记录的社平工资作为基准，或默认 8000
-  const lastYear = sortedRecords.length > 0
-    ? sortedRecords[sortedRecords.length - 1].data.year
-    : currentYear;
-  const lastAvgWage = avgWageMap?.get(lastYear)
-    ?? (sortedRecords.length > 0 ? sortedRecords[sortedRecords.length - 1].data.avgWage : 8000);
+  // 始终从 avgWageMap 中最新年份的数据推算，不依赖记录中的值
+  let lastAvgWage = 8000;
+  let lastKnownYear = currentYear;
+  if (avgWageMap && avgWageMap.size > 0) {
+    // 取 avgWageMap 中最新的年份
+    for (const [year, wage] of avgWageMap.entries()) {
+      if (year > lastKnownYear) {
+        lastKnownYear = year;
+        lastAvgWage = wage;
+      }
+    }
+  } else if (sortedRecords.length > 0) {
+    // 没有 avgWageMap 时用记录中的值
+    lastAvgWage = sortedRecords[sortedRecords.length - 1].data.avgWage;
+    lastKnownYear = sortedRecords[sortedRecords.length - 1].data.year;
+  }
 
   // 推算到退休时的社平工资（按最近几年的平均增长率）
-  // 只使用导入的社平工资数据计算增长率，不使用记录中的估算值
   let avgGrowthRate = 0.05; // 默认 5%
   if (avgWageMap && avgWageMap.size >= 2) {
-    // 从 avgWageMap 中取最近几年的数据
     const sortedWageYears = Array.from(avgWageMap.entries())
       .map(([year, wage]) => ({ year, wage }))
       .sort((a, b) => a.year - b.year);
@@ -252,7 +262,7 @@ export function calculatePension(
     }
   }
 
-  const retirementAvgWage = lastAvgWage * Math.pow(1 + avgGrowthRate, retirementYear - lastRecordYear);
+  const retirementAvgWage = lastAvgWage * Math.pow(1 + avgGrowthRate, retirementYear - lastKnownYear);
 
   // ========== 第五步：计算各项养老金 ==========
 
@@ -296,6 +306,8 @@ export function calculatePension(
     averageWageIndex: Math.round(averageWageIndex * 100) / 100,
     personalAccountBalance: Math.round(accountBalance),
     retirementAvgWage: Math.round(retirementAvgWage),
+    payoutMonths: payoutM,
+    avgGrowthRate: Math.round(avgGrowthRate * 1000) / 10,
     yearlyDetails,
   };
 }

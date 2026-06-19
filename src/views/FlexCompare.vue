@@ -104,7 +104,7 @@
 
     <!-- 详细分解 -->
     <div v-if="results.length > 0" class="card">
-      <div class="card-title">📈 详细分解</div>
+      <div class="card-title">📈 详细分解（含计算过程）</div>
       <div v-for="(r, idx) in results" :key="idx" class="detail-card">
         <div class="detail-header">
           <span class="detail-name">{{ r.plan.name }}</span>
@@ -124,8 +124,35 @@
             <span class="detail-value">{{ formatMoney(r.personalAccountBalance) }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">总缴费年限</span>
-            <span class="detail-value">{{ r.totalYearsPaid.toFixed(1) }}年</span>
+            <span class="detail-label">计发月数</span>
+            <span class="detail-value">{{ r.payoutMonths }}个月</span>
+          </div>
+        </div>
+        <div class="calc-process">
+          <div class="calc-title">计算过程</div>
+          <div class="calc-row">
+            <span>退休时社平工资</span>
+            <span>{{ formatMoney(r.retirementAvgWage) }}/月</span>
+          </div>
+          <div class="calc-row">
+            <span>社平工资年增长率</span>
+            <span>{{ r.avgGrowthRate }}%</span>
+          </div>
+          <div class="calc-row">
+            <span>平均缴费指数</span>
+            <span>{{ r.averageWageIndex }}</span>
+          </div>
+          <div class="calc-row">
+            <span>总缴费年限</span>
+            <span>{{ r.totalYears.toFixed(1) }}年</span>
+          </div>
+          <div class="calc-row">
+            <span>基础养老金公式</span>
+            <span class="formula">{{ formatMoney(r.retirementAvgWage) }} × (1+{{ r.averageWageIndex }})/2 × {{ r.totalYears.toFixed(1) }} × 1%</span>
+          </div>
+          <div class="calc-row">
+            <span>个人账户养老金公式</span>
+            <span class="formula">{{ formatMoney(r.personalAccountBalance) }} ÷ {{ r.payoutMonths }}</span>
           </div>
         </div>
       </div>
@@ -469,5 +496,33 @@ onMounted(async () => {
 .detail-value {
   color: #333;
   font-weight: 500;
+}
+.calc-process {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e8e8e8;
+}
+
+.calc-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #999;
+  padding: 2px 0;
+}
+
+.calc-row .formula {
+  color: #4A90D9;
+  font-family: monospace;
+  font-size: 10px;
+  max-width: 60%;
+  text-align: right;
 }
 </style>

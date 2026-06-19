@@ -27,6 +27,12 @@ export interface FlexPlanResult {
   basicPension: number;        // 基础养老金
   personalPension: number;     // 个人账户养老金
   roi: number;                 // 投入产出比（养老金总额 / 个人总缴费）
+  // 计算过程
+  averageWageIndex: number;    // 平均缴费指数
+  retirementAvgWage: number;   // 退休时社平工资
+  payoutMonths: number;        // 计发月数
+  totalYears: number;          // 总缴费年限（含视同）
+  avgGrowthRate: number;       // 社平工资增长率
 }
 
 /**
@@ -167,6 +173,11 @@ export function calculateFlexPlan(
     basicPension: result.basicPension,
     personalPension: result.personalPension,
     roi: totalPersonalPaid > 0 ? Math.round(result.totalPension / totalPersonalPaid * 100) / 100 : 0,
+    averageWageIndex: result.averageWageIndex,
+    retirementAvgWage: result.retirementAvgWage,
+    payoutMonths: result.payoutMonths,
+    totalYears: result.totalYears,
+    avgGrowthRate: result.avgGrowthRate,
   };
 }
 
