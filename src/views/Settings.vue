@@ -221,8 +221,8 @@ onMounted(async () => {
   await loadGiteeConfigFromDb();
 });
 
-// 从 IndexedDB 加载 Gitee 配置
-async function loadGiteeConfigFromDb() {
+// 从 IndexedDB 加载 Gitee 配置（带重试）
+async function loadGiteeConfigFromDb(retryCount = 3) {
   try {
     const doc = await getDoc(GITEE_CONFIG_DOC_ID) as GiteeSyncConfig | undefined;
     if (doc) {
@@ -234,8 +234,14 @@ async function loadGiteeConfigFromDb() {
         filePath: doc.data.filePath || 'retire-config.json',
       };
     }
-  } catch {
-    // 无配置
+  } catch (e) {
+    console.error('加载 Gitee 配置失败:', e);
+    if (retryCount > 0) {
+      // DB 可能还在初始化，等待后重试
+      await new Promise(r => setTimeout(r, 200));
+      return loadGiteeConfigFromDb(retryCount - 1);
+    }
+    // 重试耗尽，静默失败（页面仍可正常使用）
   }
 }
 
