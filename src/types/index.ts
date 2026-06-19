@@ -130,7 +130,18 @@ export interface ExpenseRecord extends BaseDocument {
     paymentMethod?: string;
     linkedPlanId?: string;
     tags?: string[];
+    items?: ExpenseItem[];
   };
+}
+
+// 消费明细项（用于 JSON 导入，支持比价）
+export interface ExpenseItem {
+  name: string;           // 商品/服务名称
+  unitPrice: number;      // 单价（元）
+  quantity: number;       // 数量
+  subtotal: number;       // 小计（元）
+  unit?: string;          // 单位（如：个、斤、瓶、次）
+  category?: string;      // 商品分类（如：水果、饮料、零食）
 }
 
 // ==================== 健康相关类型 ====================
