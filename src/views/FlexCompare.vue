@@ -68,7 +68,7 @@
               <th>退休年龄</th>
               <th>个人总缴费</th>
               <th>月养老金</th>
-              <th>替代率</th>
+              <th>相当于现在月薪</th>
               <th>养老金总额</th>
               <th>投入产出比</th>
             </tr>
@@ -85,8 +85,9 @@
               <td>{{ r.plan.retirementAge }}岁</td>
               <td>{{ formatMoney(r.totalPersonalPaid) }}</td>
               <td class="highlight">{{ formatMoney(r.monthlyPension) }}</td>
-              <td class="replacement" :class="{ good: r.replacementRate >= 70, warn: r.replacementRate >= 40 && r.replacementRate < 70, bad: r.replacementRate < 40 }">
-                {{ r.replacementRate }}%
+              <td class="wage-compare">
+                {{ formatMoney(r.monthlyPension) }}
+                <span class="wage-note">/ {{ formatMoney(currentMonthlyWage) }}</span>
               </td>
               <td>{{ formatMoney(r.totalPension) }}</td>
               <td>{{ r.roi }}x</td>
@@ -95,12 +96,10 @@
         </table>
       </div>
 
-      <!-- 替代率说明 -->
-      <div class="replacement-note">
-        替代率 = 月养老金 ÷ 当前月工资（{{ formatMoney(currentMonthlyWage) }}）
-        <span class="note-good">≥70% 充足</span>
-        <span class="note-warn">40-70% 一般</span>
-        <span class="note-bad">&lt;40% 不足</span>
+      <!-- 说明 -->
+      <div class="compare-note">
+        相当于现在月薪 = 月养老金 ÷ 当前月工资（{{ formatMoney(currentMonthlyWage) }}）的比值
+        ｜ 投入产出比 = 养老金总额 ÷ 个人总缴费，越大越划算
       </div>
 
       <!-- 最佳方案提示 -->
@@ -447,42 +446,22 @@ onMounted(async () => {
   color: #4A90D9;
 }
 
-.replacement {
-  font-weight: 600;
+.wage-compare {
+  font-size: 12px;
+  line-height: 1.4;
 }
 
-.replacement.good {
-  color: #52c41a;
+.wage-note {
+  color: #999;
+  font-size: 11px;
 }
 
-.replacement.warn {
-  color: #faad14;
-}
-
-.replacement.bad {
-  color: #ff4d4f;
-}
-
-.replacement-note {
+.compare-note {
   font-size: 11px;
   color: #999;
   margin-top: 10px;
   text-align: center;
-}
-
-.note-good {
-  color: #52c41a;
-  margin-left: 8px;
-}
-
-.note-warn {
-  color: #faad14;
-  margin-left: 8px;
-}
-
-.note-bad {
-  color: #ff4d4f;
-  margin-left: 8px;
+  line-height: 1.6;
 }
 
 .best-plan {
