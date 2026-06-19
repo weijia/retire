@@ -339,7 +339,12 @@
           <span class="card-title">🔧 灵活就业方案对比</span>
           <router-link to="/pension/flex-compare" class="card-link">对比 &#8250;</router-link>
         </div>
-        <div class="empty-hint">
+        <div v-if="pensionStore.selectedFlexPlan" class="selected-plan-info">
+          <span class="plan-badge">已选用</span>
+          {{ pensionStore.selectedFlexPlan.name }}（{{ pensionStore.selectedFlexPlan.basePercent }}%，{{ pensionStore.selectedFlexPlan.endYear - pensionStore.selectedFlexPlan.startYear + 1 }}年，{{ pensionStore.selectedFlexPlan.retirementAge }}岁退休）
+          <button class="btn btn-sm btn-danger" @click="pensionStore.clearFlexPlan()" style="margin-left: 8px;">取消</button>
+        </div>
+        <div v-else class="empty-hint">
           对比不同缴费档次、年限、退休年龄下的养老金差异，选择最优方案
         </div>
       </div>
@@ -1053,6 +1058,25 @@ onMounted(async () => {
   background: var(--primary);
   color: white;
   font-size: 12px;
+  font-weight: 600;
+}
+
+.selected-plan-info {
+  font-size: 13px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.plan-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #4A90D9;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 600;
 }
 </style>

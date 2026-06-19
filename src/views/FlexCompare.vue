@@ -71,6 +71,7 @@
               <th>相当于现在月薪</th>
               <th>养老金总额</th>
               <th>投入产出比</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -91,6 +92,15 @@
               </td>
               <td>{{ formatMoney(r.totalPension) }}</td>
               <td>{{ r.roi }}x</td>
+              <td>
+                <button
+                  class="select-btn"
+                  :class="{ selected: isSelected(r) }"
+                  @click="selectPlan(r)"
+                >
+                  {{ isSelected(r) ? '已选用' : '选用' }}
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -102,12 +112,13 @@
         ｜ 投入产出比 = 养老金总额 ÷ 个人总缴费，越大越划算
       </div>
 
-      <!-- 最佳方案提示 -->
-      <div v-if="sortedResults.length > 0" class="best-plan">
-        <div class="best-label">🏆 月养老金最高</div>
-        <div class="best-value">
-          {{ sortedResults[0].plan.name }}：{{ formatMoney(sortedResults[0].monthlyPension) }}/月
+      <!-- 选用提示 -->
+      <div v-if="pensionStore.selectedFlexPlan" class="selected-plan">
+        <div class="selected-label">当前选用方案</div>
+        <div class="selected-value">
+          {{ pensionStore.selectedFlexPlan.name }}（{{ pensionStore.selectedFlexPlan.basePercent }}%，{{ pensionStore.selectedFlexPlan.endYear - pensionStore.selectedFlexPlan.startYear + 1 }}年，{{ pensionStore.selectedFlexPlan.retirementAge }}岁退休）
         </div>
+        <button class="btn btn-sm btn-danger" @click="clearSelection">取消选用</button>
       </div>
     </div>
 
@@ -263,6 +274,28 @@ function calculate() {
 
 function addCustomPlan() {
   calculate();
+}
+
+function isSelected(r: FlexPlanResult) {
+  const sp = pensionStore.selectedFlexPlan;
+  if (!sp) return false;
+  return sp.name === r.plan.name
+    && sp.startYear === r.plan.startYear
+    && sp.endYear === r.plan.endYear
+    && sp.basePercent === r.plan.basePercent
+    && sp.retirementAge === r.plan.retirementAge;
+}
+
+function selectPlan(r: FlexPlanResult) {
+  if (isSelected(r)) {
+    pensionStore.clearFlexPlan();
+  } else {
+    pensionStore.setFlexPlan(r.plan);
+  }
+}
+
+function clearSelection() {
+  pensionStore.clearFlexPlan();
 }
 
 onMounted(async () => {
@@ -482,6 +515,43 @@ onMounted(async () => {
   font-size: 16px;
   font-weight: 600;
   color: #333;
+}
+
+.select-btn {
+  padding: 4px 12px;
+  border: 1px solid #4A90D9;
+  border-radius: 4px;
+  background: #fff;
+  color: #4A90D9;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.select-btn.selected {
+  background: #4A90D9;
+  color: #fff;
+}
+
+.selected-plan {
+  margin-top: 16px;
+  padding: 12px;
+  background: #e6f0ff;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.selected-label {
+  font-size: 13px;
+  color: #4A90D9;
+  margin-bottom: 4px;
+}
+
+.selected-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
 }
 
 .detail-card {

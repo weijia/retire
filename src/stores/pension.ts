@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { PensionRecord, PensionConfig, PensionPhase } from '../types';
+import type { FlexPlan } from '../utils/pensionCompare';
 import { putDoc, getDoc, getAllDocs, removeDoc } from '../db';
 import { calculatePension, calculateSufficiency, expandPhasesToRecords, type PensionCalculationResult, type SufficiencyResult } from '../utils/pensionCalc';
 
@@ -10,6 +11,7 @@ export const usePensionStore = defineStore('pension', () => {
   const config = ref<PensionConfig | null>(null);
   const loading = ref(false);
   const phases = ref<PensionPhase[]>([]);
+  const selectedFlexPlan = ref<FlexPlan | null>(null);
 
   const CONFIG_DOC_ID = 'pension_config_main';
 
@@ -236,21 +238,32 @@ export const usePensionStore = defineStore('pension', () => {
     currentYear: number,
     avgWageMap?: Map<number, number>
   ): PensionCalculationResult {
-    // 合并 PDF 导入记录和缴费阶段展开记录
-    // 阶段展开记录覆盖同年的导入记录（阶段配置优先）
     const cfg = config.value?.data;
     const retirementYear = cfg ? currentYear + (cfg.retirementAge - currentAge) : currentYear + 25;
 
     let recordsToUse = [...records.value];
 
-    if (phases.value.length > 0) {
-      const phaseRecords = expandPhasesToRecords(phases.value, retirementYear, avgWageMap);
-      // 按年份建立索引：阶段记录覆盖导入记录
+    // 如果有选中的灵活就业方案，用它来展开灵活就业记录
+    if (selectedFlexPlan.value) {
+      const plan = selectedFlexPlan.value;
+      const flexPhase: PensionPhase = {
+        phaseType: 'flex',
+        startYear: plan.startYear,
+        endYear: plan.endYear,
+        monthlyBase: 0,
+        avgWage: avgWageMap?.get(plan.startYear) || 8000,
+        personalRate: 8,
+        employerRate: 12,
+        monthsPaidPerYear: plan.monthsPerYear,
+        flexBasePercent: plan.basePercent,
+      };
+      const flexRecords = expandPhasesToRecords([flexPhase], retirementYear, avgWageMap);
+
+      // 合并：灵活就业记录覆盖同年导入记录
       const phaseYearMap = new Map<number, PensionRecord>();
-      for (const pr of phaseRecords) {
+      for (const pr of flexRecords) {
         phaseYearMap.set(pr.data.year, pr);
       }
-      // 合并：导入记录中不在阶段覆盖范围内的保留，阶段覆盖的替换
       const merged: PensionRecord[] = [];
       const coveredYears = new Set<number>();
       for (const r of recordsToUse) {
@@ -261,7 +274,29 @@ export const usePensionStore = defineStore('pension', () => {
           merged.push(r);
         }
       }
-      // 添加阶段中不在导入记录里的年份
+      for (const pr of flexRecords) {
+        if (!coveredYears.has(pr.data.year)) {
+          merged.push(pr);
+        }
+      }
+      recordsToUse = merged;
+    } else if (phases.value.length > 0) {
+      // 否则用缴费阶段展开记录
+      const phaseRecords = expandPhasesToRecords(phases.value, retirementYear, avgWageMap);
+      const phaseYearMap = new Map<number, PensionRecord>();
+      for (const pr of phaseRecords) {
+        phaseYearMap.set(pr.data.year, pr);
+      }
+      const merged: PensionRecord[] = [];
+      const coveredYears = new Set<number>();
+      for (const r of recordsToUse) {
+        if (phaseYearMap.has(r.data.year)) {
+          merged.push(phaseYearMap.get(r.data.year)!);
+          coveredYears.add(r.data.year);
+        } else {
+          merged.push(r);
+        }
+      }
       for (const pr of phaseRecords) {
         if (!coveredYears.has(pr.data.year)) {
           merged.push(pr);
@@ -287,6 +322,7 @@ export const usePensionStore = defineStore('pension', () => {
     config,
     loading,
     phases,
+    selectedFlexPlan,
     hasConfig,
     sortedRecords,
     totalYearsPaid,
@@ -307,5 +343,11 @@ export const usePensionStore = defineStore('pension', () => {
     removeRecord,
     computePension,
     computeSufficiency,
+    setFlexPlan(plan: FlexPlan | null) {
+      selectedFlexPlan.value = plan;
+    },
+    clearFlexPlan() {
+      selectedFlexPlan.value = null;
+    },
   };
 });
