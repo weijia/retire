@@ -1,11 +1,12 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import type { Component } from 'vue';
 
 /**
  * 带缓存失效处理的懒加载
  * 当动态 import 失败时（如 SW 缓存了旧的 chunk 文件名），
  * 自动清除所有缓存并重载页面
  */
-function lazyLoad(view: () => Promise<typeof import('*.vue')>) {
+function lazyLoad(view: () => Promise<{ default: Component }>) {
   return () => view().catch(async (error: Error) => {
     console.warn('[Router] 动态导入失败:', error.message);
     // 尝试清除 Service Worker 缓存并重载
@@ -25,7 +26,7 @@ function lazyLoad(view: () => Promise<typeof import('*.vue')>) {
     // 重载页面
     window.location.reload();
     // 重载失败时返回一个错误占位组件
-    return { default: { template: '<div style="padding:40px;text-align:center;color:#999;">加载失败，请刷新页面重试</div>' } };
+    return { default: { template: '<div style="padding:40px;text-align:center;color:#999;">加载失败，请刷新页面重试</div>' } as Component };
   });
 }
 
