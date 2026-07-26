@@ -18,7 +18,6 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       injectManifest: {
-        injectionPoint: undefined,      // 禁用默认注入点，手动控制
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
       },
       manifest: {
