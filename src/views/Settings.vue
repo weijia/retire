@@ -581,29 +581,21 @@ async function manualSync() {
 
 // 获取同步状态徽章
 function getSyncBadgeClass(backendId: string): string {
-  const statuses = configStore.getSyncStatuses();
-  for (const [pairId, status] of statuses) {
-    if (pairId.includes(backendId)) {
-      if (status.state === 'syncing') return 'sync-badge-syncing';
-      if (status.state === 'disposed') return 'sync-badge-error';
-      if (status.state === 'paused') return 'sync-badge-unknown';
-      return 'sync-badge-ok';
-    }
-  }
+  const state = configStore.getBackendSyncState(backendId);
+  if (state === 'syncing') return 'sync-badge-syncing';
+  if (state === 'disposed') return 'sync-badge-error';
+  if (state === 'paused') return 'sync-badge-unknown';
+  if (state === 'watching' || state === 'idle') return 'sync-badge-ok';
   return 'sync-badge-unknown';
 }
 
 function getSyncBadgeText(backendId: string): string {
-  const statuses = configStore.getSyncStatuses();
-  for (const [pairId, status] of statuses) {
-    if (pairId.includes(backendId)) {
-      if (status.state === 'syncing') return '同步中';
-      if (status.state === 'disposed') return '已断开';
-      if (status.state === 'paused') return '已暂停';
-      if (status.state === 'watching') return '自动同步';
-      return '已同步';
-    }
-  }
+  const state = configStore.getBackendSyncState(backendId);
+  if (state === 'syncing') return '同步中';
+  if (state === 'disposed') return '已断开';
+  if (state === 'paused') return '已暂停';
+  if (state === 'watching') return '自动同步';
+  if (state === 'idle') return '已同步';
   return '未知';
 }
 </script>

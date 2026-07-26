@@ -311,14 +311,22 @@ export const useConfigStore = defineStore('config', () => {
    * 判断后端是否处于暂停状态
    */
   function isBackendPaused(id: string): boolean {
-    const repo = getRepo();
+    return getBackendSyncState(id) === 'paused';
+  }
+
+  /**
+   * 获取后端的同步状态
+   * ConfigRepo 内部 replicaBackends Map 存储了 { pairId }，
+   * pairId 是随机生成的（如 sync-lxyz1234-1），不包含后端 ID，
+   * 因此必须通过 replicaBackends 查找 pairId，再查 syncStatuses
+   */
+  function getBackendSyncState(id: string): string | undefined {
+    const repo = getRepo() as any;
+    const replica = repo.replicaBackends?.get(id);
+    if (!replica) return undefined;
     const statuses = repo.getSyncStatuses();
-    for (const [, status] of statuses) {
-      if (status.pairId.includes(id) || id.includes(status.pairId)) {
-        return status.state === 'paused';
-      }
-    }
-    return false;
+    const status = statuses.get(replica.pairId);
+    return status?.state;
   }
 
   /**
@@ -380,6 +388,7 @@ export const useConfigStore = defineStore('config', () => {
     pauseBackend,
     resumeBackend,
     isBackendPaused,
+    getBackendSyncState,
     refreshBackends,
     flush,
     getSyncStatuses,
