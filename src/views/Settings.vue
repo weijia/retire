@@ -54,17 +54,78 @@
       </button>
     </div>
 
+    <!-- 业务数据：本地备份 -->
     <div class="card">
-      <div class="card-title">数据管理</div>
+      <div class="card-title">业务数据备份</div>
       <div class="form-hint" style="margin-bottom: 12px;">
-        导出/导入完整数据（含资产、消费记录、养老金记录等所有业务数据）
+        业务数据包括：资产账户、消费记录、养老金缴存记录、健康每日记录、预期寿命快照等。
+        <br/>以下为本地导出/导入，适合手动备份和迁移。
       </div>
       <div class="data-actions">
-        <button class="btn btn-sm" @click="exportData">导出数据</button>
+        <button class="btn btn-sm" @click="exportData">导出到文件</button>
         <label class="btn btn-sm" style="cursor:pointer">
-          导入数据
+          从文件导入
           <input type="file" accept=".json" @change="importData" style="display:none" />
         </label>
+      </div>
+    </div>
+
+    <!-- 业务数据：Gitee 云备份 -->
+    <div class="card">
+      <div class="card-title">业务数据云备份</div>
+      <div class="form-hint" style="margin-bottom: 12px;">
+        将全部业务数据上传到 Gitee 仓库，或从 Gitee 恢复。
+        <strong>注意：这是手动全量备份，不是自动同步。</strong>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Gitee 令牌</label>
+        <input
+          v-model="dataBackupConfig.token"
+          type="password"
+          class="form-input"
+          placeholder="Gitee 私人令牌"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input
+          v-model="dataBackupConfig.owner"
+          type="text"
+          class="form-input"
+          placeholder="Gitee 用户名"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label">仓库名</label>
+        <input
+          v-model="dataBackupConfig.repo"
+          type="text"
+          class="form-input"
+          placeholder="仓库名称"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label">分支名</label>
+        <input
+          v-model="dataBackupConfig.branch"
+          type="text"
+          class="form-input"
+          placeholder="默认 master"
+        />
+      </div>
+
+      <div class="data-actions">
+        <button class="btn btn-sm btn-primary" @click="uploadDataToGitee" :disabled="dataSyncing || !isDataBackupConfigured">
+          {{ dataSyncing ? '上传中...' : '上传备份' }}
+        </button>
+        <button class="btn btn-sm" @click="downloadDataFromGitee" :disabled="dataSyncing || !isDataBackupConfigured">
+          {{ dataSyncing ? '恢复中...' : '恢复备份' }}
+        </button>
+      </div>
+
+      <div v-if="dataSyncStatus" class="sync-status" :class="dataSyncStatus.type">
+        {{ dataSyncStatus.message }}
       </div>
     </div>
 
@@ -72,8 +133,8 @@
     <div class="card">
       <div class="card-title">配置云同步</div>
       <div class="form-hint" style="margin-bottom: 12px;">
-        将个人配置（退休设置、养老金参数、健康画像）自动同步到云端，实现多设备配置同步。
-        <strong>注意：仅同步配置，不同步业务数据。</strong>
+        自动同步个人配置（退休设置、养老金参数、健康画像）到云端，实现多设备间配置实时一致。
+        <br/><strong>仅同步配置，不含业务数据。业务数据备份请见上方。</strong>
       </div>
 
       <!-- 已连接的后端列表 -->
@@ -187,6 +248,7 @@ import { usePlansStore } from '../stores/plans';
 import { useConfigStore } from '../stores/config';
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
+import { loadFromGitee, saveToGitee, type GiteeConfig } from '../utils/giteeSync';
 import type { GiteeSyncConfig } from '../types';
 import type { BackendParamDef } from 'zen-fs-config';
 
@@ -198,6 +260,19 @@ const configStore = useConfigStore();
 const saving = ref(false);
 const syncing = ref(false);
 const syncStatus = ref<{ type: 'success' | 'error'; message: string } | null>(null);
+
+// ============ 业务数据 Gitee 云备份 ============
+const dataSyncing = ref(false);
+const dataSyncStatus = ref<{ type: 'success' | 'error'; message: string } | null>(null);
+const dataBackupConfig = ref({
+  token: '',
+  owner: '',
+  repo: '',
+  branch: 'master',
+});
+const isDataBackupConfigured = computed(() => {
+  return dataBackupConfig.value.token && dataBackupConfig.value.owner && dataBackupConfig.value.repo;
+});
 
 const form = ref({
   birthYear: 1990,
@@ -327,6 +402,82 @@ async function importData(event: Event) {
     window.location.reload();
   } catch (e) {
     alert('导入失败，请检查文件格式');
+  }
+}
+
+// ============ 业务数据 Gitee 云备份 ============
+
+// 上传业务数据到 Gitee
+async function uploadDataToGitee() {
+  if (!isDataBackupConfigured.value) {
+    alert('请先填写 Gitee 配置');
+    return;
+  }
+
+  dataSyncing.value = true;
+  dataSyncStatus.value = null;
+
+  try {
+    const data = await exportDb();
+    const config: GiteeConfig = {
+      token: dataBackupConfig.value.token,
+      owner: dataBackupConfig.value.owner,
+      repo: dataBackupConfig.value.repo,
+      branch: dataBackupConfig.value.branch || 'master',
+      filePath: 'retire-data-backup.json',
+    };
+
+    // 先获取现有文件（需要 sha 才能更新）
+    const existing = await loadFromGitee(config);
+    await saveToGitee(config, data, existing?.sha);
+
+    dataSyncStatus.value = { type: 'success', message: '业务数据已上传到 Gitee' };
+  } catch (e: any) {
+    dataSyncStatus.value = { type: 'error', message: `上传失败: ${e.message || e}` };
+  } finally {
+    dataSyncing.value = false;
+  }
+}
+
+// 从 Gitee 恢复业务数据
+async function downloadDataFromGitee() {
+  if (!isDataBackupConfigured.value) {
+    alert('请先填写 Gitee 配置');
+    return;
+  }
+
+  if (!confirm('从 Gitee 恢复将覆盖当前所有业务数据，确定继续吗？')) {
+    return;
+  }
+
+  dataSyncing.value = true;
+  dataSyncStatus.value = null;
+
+  try {
+    const config: GiteeConfig = {
+      token: dataBackupConfig.value.token,
+      owner: dataBackupConfig.value.owner,
+      repo: dataBackupConfig.value.repo,
+      branch: dataBackupConfig.value.branch || 'master',
+      filePath: 'retire-data-backup.json',
+    };
+
+    const result = await loadFromGitee(config);
+    if (!result) {
+      dataSyncStatus.value = { type: 'error', message: 'Gitee 上暂无备份数据' };
+      return;
+    }
+
+    await importDb(result.content);
+    dataSyncStatus.value = { type: 'success', message: '已从 Gitee 恢复数据，即将刷新页面...' };
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+  } catch (e: any) {
+    dataSyncStatus.value = { type: 'error', message: `恢复失败: ${e.message || e}` };
+  } finally {
+    dataSyncing.value = false;
   }
 }
 
