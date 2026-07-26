@@ -771,8 +771,13 @@ function getSyncBadgeText(backendId: string): string {
 }
 
 .btn-danger {
+  background: transparent;
   color: var(--danger, #ff4d4f);
-  border-color: var(--danger, #ff4d4f);
+  border: 1px solid var(--danger, #ff4d4f);
+}
+
+.btn-danger:active {
+  background: rgba(255, 77, 79, 0.1);
 }
 
 .version-info {
