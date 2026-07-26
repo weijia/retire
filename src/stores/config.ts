@@ -281,6 +281,47 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   /**
+   * 暂停后端同步（不删除后端，仅停止自动 watch）
+   * 通过访问 ConfigRepo 内部的 syncEngine 实现
+   */
+  function pauseBackend(id: string) {
+    const repo = getRepo() as any;
+    const replica = repo.replicaBackends?.get(id);
+    if (!replica) {
+      throw new Error(`后端 "${id}" 不存在`);
+    }
+    repo.syncEngine?.unwatch(replica.pairId);
+    console.log(`[ConfigStore] 后端 ${id} 同步已暂停`);
+  }
+
+  /**
+   * 恢复后端同步
+   */
+  function resumeBackend(id: string) {
+    const repo = getRepo() as any;
+    const replica = repo.replicaBackends?.get(id);
+    if (!replica) {
+      throw new Error(`后端 "${id}" 不存在`);
+    }
+    repo.syncEngine?.watch(replica.pairId);
+    console.log(`[ConfigStore] 后端 ${id} 同步已恢复`);
+  }
+
+  /**
+   * 判断后端是否处于暂停状态
+   */
+  function isBackendPaused(id: string): boolean {
+    const repo = getRepo();
+    const statuses = repo.getSyncStatuses();
+    for (const [, status] of statuses) {
+      if (status.pairId.includes(id) || id.includes(status.pairId)) {
+        return status.state === 'paused';
+      }
+    }
+    return false;
+  }
+
+  /**
    * 刷新后端列表
    */
   async function refreshBackends() {
@@ -336,6 +377,9 @@ export const useConfigStore = defineStore('config', () => {
     addGiteeBackend,
     addBackend,
     removeBackend,
+    pauseBackend,
+    resumeBackend,
+    isBackendPaused,
     refreshBackends,
     flush,
     getSyncStatuses,

@@ -148,8 +148,15 @@
             <span class="sync-badge" :class="getSyncBadgeClass(b.id)">
               {{ getSyncBadgeText(b.id) }}
             </span>
+            <button
+              class="btn btn-sm"
+              @click="toggleBackendSync(b.id)"
+              :disabled="syncing"
+            >
+              {{ configStore.isBackendPaused(b.id) ? '恢复' : '暂停' }}
+            </button>
             <button class="btn btn-sm btn-danger" @click="disconnectBackend(b.id)" :disabled="syncing">
-              断开
+              删除
             </button>
           </div>
         </div>
@@ -524,16 +531,35 @@ async function connectBackend() {
   }
 }
 
-// 断开 Gitee 后端
+// 暂停/恢复后端同步
+async function toggleBackendSync(id: string) {
+  syncing.value = true;
+  syncStatus.value = null;
+  try {
+    if (configStore.isBackendPaused(id)) {
+      configStore.resumeBackend(id);
+      syncStatus.value = { type: 'success', message: '同步已恢复' };
+    } else {
+      configStore.pauseBackend(id);
+      syncStatus.value = { type: 'success', message: '同步已暂停' };
+    }
+  } catch (e: any) {
+    syncStatus.value = { type: 'error', message: `操作失败: ${e.message || e}` };
+  } finally {
+    syncing.value = false;
+  }
+}
+
+// 删除后端（完全移除同步连接）
 async function disconnectBackend(id: string) {
-  if (!confirm('断开后将停止配置同步，确定继续吗？')) return;
+  if (!confirm('删除后将完全移除该后端连接及其配置，确定继续吗？')) return;
 
   syncing.value = true;
   try {
     await configStore.removeBackend(id);
-    syncStatus.value = { type: 'success', message: '已断开同步' };
+    syncStatus.value = { type: 'success', message: '后端已删除' };
   } catch (e: any) {
-    syncStatus.value = { type: 'error', message: `断开失败: ${e.message || e}` };
+    syncStatus.value = { type: 'error', message: `删除失败: ${e.message || e}` };
   } finally {
     syncing.value = false;
   }
