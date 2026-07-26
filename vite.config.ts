@@ -13,7 +13,7 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'prompt',           // prompt 模式，不自动更新
-      injectRegister: 'auto',           // 自动注入 SW 注册代码
+      injectRegister: false,            // 手动注册，以支持 updateViaCache: 'none'
       strategies: 'injectManifest',     // 使用自定义 SW
       srcDir: 'src',
       filename: 'sw.ts',
