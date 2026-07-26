@@ -306,10 +306,8 @@ function onBackendTypeChange() {
   const meta = configStore.backendMetadata.find(m => m.type === selectedBackendType.value);
   if (meta) {
     backendFormValues.value = { ...meta.defaultOptions };
-    // 自动填充后端标识为类型小写
-    if (!backendId.value) {
-      backendId.value = meta.type.toLowerCase();
-    }
+    // 切换后端类型时重置后端标识为类型小写
+    backendId.value = meta.type.toLowerCase();
   }
 }
 
@@ -497,6 +495,8 @@ async function connectBackend() {
     const options: Record<string, unknown> = { ...backendFormValues.value };
 
     // 添加后端，自动建立双向同步
+    // zen-fs-config 会自动将后端描述符持久化到 .meta/backends/{id}.json，
+    // 下次启动时 createConfigRepo() 会自动恢复所有后端，无需手动保存。
     await configStore.addBackend(
       backendId.value,
       type,
@@ -504,15 +504,17 @@ async function connectBackend() {
       `${meta?.label || type} 配置同步`,
     );
 
-    // 保存同步配置到配置仓库（用于下次自动重连）
-    const syncData: GiteeSyncConfig['data'] = {
-      token: backendFormValues.value.token || '',
-      owner: backendFormValues.value.owner || '',
-      repo: backendFormValues.value.repo || '',
-      branch: backendFormValues.value.branch || 'master',
-      filePath: 'retire-config.json',
-    };
-    configStore.setSyncConfig(syncData);
+    // 仅 Gitee 后端保存旧格式同步配置（用于兼容旧版自动重连迁移逻辑）
+    if (type === 'Gitee') {
+      const syncData: GiteeSyncConfig['data'] = {
+        token: backendFormValues.value.token || '',
+        owner: backendFormValues.value.owner || '',
+        repo: backendFormValues.value.repo || '',
+        branch: backendFormValues.value.branch || 'master',
+        filePath: 'retire-config.json',
+      };
+      configStore.setSyncConfig(syncData);
+    }
 
     syncStatus.value = { type: 'success', message: `已连接 ${meta?.label || type} 并开始同步配置` };
   } catch (e: any) {
