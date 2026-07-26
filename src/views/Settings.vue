@@ -56,6 +56,9 @@
 
     <div class="card">
       <div class="card-title">数据管理</div>
+      <div class="form-hint" style="margin-bottom: 12px;">
+        导出/导入完整数据（含资产、消费记录、养老金记录等所有业务数据）
+      </div>
       <div class="data-actions">
         <button class="btn btn-sm" @click="exportData">导出数据</button>
         <label class="btn btn-sm" style="cursor:pointer">
@@ -65,77 +68,88 @@
       </div>
     </div>
 
-    <!-- Gitee 云同步 -->
+    <!-- 配置云同步（zen-fs-config） -->
     <div class="card">
-      <div class="card-title">Gitee 云同步</div>
+      <div class="card-title">配置云同步</div>
       <div class="form-hint" style="margin-bottom: 12px;">
-        将配置保存到 Gitee 仓库，实现多设备同步。需先在 Gitee 创建私人令牌。
+        将个人配置（退休设置、养老金参数、健康画像）自动同步到 Gitee 仓库，实现多设备配置同步。
+        <strong>注意：仅同步配置，不同步业务数据。</strong>
       </div>
-      
-      <div class="form-group">
-        <label class="form-label">访问令牌</label>
-        <input
-          v-model="giteeConfig.token"
-          type="password"
-          class="form-input"
-          placeholder="Gitee 私人令牌"
-        />
-        <div class="form-hint">在 Gitee 设置 → 安全设置 → 私人令牌 中创建</div>
+
+      <!-- 已连接的后端列表 -->
+      <div v-if="configStore.backends.length > 0" class="backend-list">
+        <div v-for="b in configStore.backends" :key="b.id" class="backend-item">
+          <div class="backend-info">
+            <span class="backend-type">{{ b.type }}</span>
+            <span class="backend-desc">{{ b.description || b.id }}</span>
+          </div>
+          <div class="backend-actions">
+            <span class="sync-badge" :class="getSyncBadgeClass(b.id)">
+              {{ getSyncBadgeText(b.id) }}
+            </span>
+            <button class="btn btn-sm btn-danger" @click="disconnectBackend(b.id)" :disabled="syncing">
+              断开
+            </button>
+          </div>
+        </div>
       </div>
-      
-      <div class="form-group">
-        <label class="form-label">用户名</label>
-        <input
-          v-model="giteeConfig.owner"
-          type="text"
-          class="form-input"
-          placeholder="Gitee 用户名"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label class="form-label">仓库名</label>
-        <input
-          v-model="giteeConfig.repo"
-          type="text"
-          class="form-input"
-          placeholder="仓库名称"
-        />
-        <div class="form-hint">需要是一个已存在的仓库</div>
-      </div>
-      
-      <div class="form-group">
-        <label class="form-label">分支名</label>
-        <input
-          v-model="giteeConfig.branch"
-          type="text"
-          class="form-input"
-          placeholder="默认 master"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label class="form-label">文件路径</label>
-        <input
-          v-model="giteeConfig.filePath"
-          type="text"
-          class="form-input"
-          placeholder="默认 retire-config.json"
-        />
-      </div>
-      
-      <div class="data-actions">
-        <button class="btn btn-sm" @click="saveGiteeConfig" :disabled="syncing">
-          保存配置
+
+      <!-- Gitee 配置表单 -->
+      <div v-if="configStore.backends.length === 0" class="gitee-form">
+        <div class="form-group">
+          <label class="form-label">访问令牌</label>
+          <input
+            v-model="giteeConfig.token"
+            type="password"
+            class="form-input"
+            placeholder="Gitee 私人令牌"
+          />
+          <div class="form-hint">在 Gitee 设置 → 安全设置 → 私人令牌 中创建</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">用户名</label>
+          <input
+            v-model="giteeConfig.owner"
+            type="text"
+            class="form-input"
+            placeholder="Gitee 用户名"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">仓库名</label>
+          <input
+            v-model="giteeConfig.repo"
+            type="text"
+            class="form-input"
+            placeholder="仓库名称"
+          />
+          <div class="form-hint">需要是一个已存在的仓库</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">分支名</label>
+          <input
+            v-model="giteeConfig.branch"
+            type="text"
+            class="form-input"
+            placeholder="默认 master"
+          />
+        </div>
+
+        <button class="btn btn-sm btn-primary btn-block" @click="connectGitee" :disabled="syncing || !isGiteeConfigured">
+          {{ syncing ? '连接中...' : '连接并同步' }}
         </button>
-        <button class="btn btn-sm btn-primary" @click="syncToGitee" :disabled="syncing || !isGiteeConfigured">
-          {{ syncing ? '同步中...' : '上传到 Gitee' }}
-        </button>
-        <button class="btn btn-sm" @click="syncFromGitee" :disabled="syncing || !isGiteeConfigured">
-          从 Gitee 加载
+      </div>
+
+      <!-- 手动同步按钮 -->
+      <div v-if="configStore.backends.length > 0" class="data-actions" style="margin-top: 12px;">
+        <button class="btn btn-sm" @click="manualSync" :disabled="syncing">
+          {{ syncing ? '同步中...' : '立即同步' }}
         </button>
       </div>
-      
+
       <div v-if="syncStatus" class="sync-status" :class="syncStatus.type">
         {{ syncStatus.message }}
       </div>
@@ -171,14 +185,15 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { usePlansStore } from '../stores/plans';
-import { exportDb, importDb, putDoc, getDoc } from '../db';
+import { useConfigStore } from '../stores/config';
+import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
-import { loadFromGitee, saveToGitee, type GiteeConfig } from '../utils/giteeSync';
 import type { GiteeSyncConfig } from '../types';
 
 const router = useRouter();
 const userStore = useUserStore();
 const plansStore = usePlansStore();
+const configStore = useConfigStore();
 
 const saving = ref(false);
 const syncing = ref(false);
@@ -196,10 +211,7 @@ const giteeConfig = ref({
   owner: '',
   repo: '',
   branch: 'master',
-  filePath: 'retire-config.json',
 });
-
-const GITEE_CONFIG_DOC_ID = 'gitee_sync_config_main';
 
 const isGiteeConfigured = computed(() => {
   return giteeConfig.value.token && giteeConfig.value.owner && giteeConfig.value.repo;
@@ -217,33 +229,17 @@ onMounted(async () => {
     };
   }
 
-  // 从 IndexedDB 加载 Gitee 配置
-  await loadGiteeConfigFromDb();
-});
-
-// 从 IndexedDB 加载 Gitee 配置（带重试）
-async function loadGiteeConfigFromDb(retryCount = 3) {
-  try {
-    const doc = await getDoc(GITEE_CONFIG_DOC_ID) as GiteeSyncConfig | undefined;
-    if (doc) {
-      giteeConfig.value = {
-        token: doc.data.token,
-        owner: doc.data.owner,
-        repo: doc.data.repo,
-        branch: doc.data.branch || 'master',
-        filePath: doc.data.filePath || 'retire-config.json',
-      };
-    }
-  } catch (e) {
-    console.error('加载 Gitee 配置失败:', e);
-    if (retryCount > 0) {
-      // DB 可能还在初始化，等待后重试
-      await new Promise(r => setTimeout(r, 200));
-      return loadGiteeConfigFromDb(retryCount - 1);
-    }
-    // 重试耗尽，静默失败（页面仍可正常使用）
+  // 从配置仓库加载 Gitee 同步配置
+  const syncData = configStore.getSyncConfig();
+  if (syncData) {
+    giteeConfig.value = {
+      token: syncData.token,
+      owner: syncData.owner,
+      repo: syncData.repo,
+      branch: syncData.branch || 'master',
+    };
   }
-}
+});
 
 async function save() {
   if (!form.value.birthYear) {
@@ -318,99 +314,98 @@ async function importData(event: Event) {
   }
 }
 
-// 保存 Gitee 配置到 IndexedDB
-async function saveGiteeConfig() {
-  const now = new Date().toISOString();
-  const doc: GiteeSyncConfig = {
-    _id: GITEE_CONFIG_DOC_ID,
-    type: 'gitee_sync_config',
-    createdAt: now,
-    updatedAt: now,
-    data: {
-      token: giteeConfig.value.token,
-      owner: giteeConfig.value.owner,
-      repo: giteeConfig.value.repo,
-      branch: giteeConfig.value.branch || 'master',
-      filePath: giteeConfig.value.filePath || 'retire-config.json',
-    },
-  };
-  await putDoc(doc);
-  syncStatus.value = { type: 'success', message: 'Gitee 配置已保存到本地' };
-  setTimeout(() => { syncStatus.value = null; }, 3000);
-}
-
-// 上传到 Gitee
-async function syncToGitee() {
+// 连接 Gitee 后端（保存配置 + 添加后端）
+async function connectGitee() {
   if (!isGiteeConfigured.value) {
     alert('请先填写 Gitee 配置');
     return;
   }
-  
+
   syncing.value = true;
   syncStatus.value = null;
-  
+
   try {
-    const data = await exportDb();
-    const config: GiteeConfig = {
+    // 保存同步配置到配置仓库
+    const syncData: GiteeSyncConfig['data'] = {
       token: giteeConfig.value.token,
       owner: giteeConfig.value.owner,
       repo: giteeConfig.value.repo,
       branch: giteeConfig.value.branch || 'master',
-      filePath: giteeConfig.value.filePath || 'retire-config.json',
+      filePath: 'retire-config.json',
     };
-    
-    // 先尝试获取现有文件
-    const existing = await loadFromGitee(config);
-    await saveToGitee(config, data, existing?.sha);
-    
-    syncStatus.value = { type: 'success', message: '已成功上传到 Gitee' };
+    configStore.setSyncConfig(syncData);
+
+    // 添加 Gitee 后端，自动建立双向同步
+    await configStore.addGiteeBackend('gitee', {
+      token: giteeConfig.value.token,
+      owner: giteeConfig.value.owner,
+      repo: giteeConfig.value.repo,
+      branch: giteeConfig.value.branch || 'master',
+    }, 'Gitee 配置同步');
+
+    syncStatus.value = { type: 'success', message: '已连接 Gitee 并开始同步配置' };
   } catch (e: any) {
-    syncStatus.value = { type: 'error', message: `上传失败: ${e.message}` };
+    syncStatus.value = { type: 'error', message: `连接失败: ${e.message || e}` };
   } finally {
     syncing.value = false;
   }
 }
 
-// 从 Gitee 加载
-async function syncFromGitee() {
-  if (!isGiteeConfigured.value) {
-    alert('请先填写 Gitee 配置');
-    return;
+// 断开 Gitee 后端
+async function disconnectBackend(id: string) {
+  if (!confirm('断开后将停止配置同步，确定继续吗？')) return;
+
+  syncing.value = true;
+  try {
+    await configStore.removeBackend(id);
+    syncStatus.value = { type: 'success', message: '已断开同步' };
+  } catch (e: any) {
+    syncStatus.value = { type: 'error', message: `断开失败: ${e.message || e}` };
+  } finally {
+    syncing.value = false;
   }
-  
-  if (!confirm('从 Gitee 加载将覆盖当前所有数据，确定继续吗？')) {
-    return;
-  }
-  
+}
+
+// 手动触发同步
+async function manualSync() {
   syncing.value = true;
   syncStatus.value = null;
-  
   try {
-    const config: GiteeConfig = {
-      token: giteeConfig.value.token,
-      owner: giteeConfig.value.owner,
-      repo: giteeConfig.value.repo,
-      branch: giteeConfig.value.branch || 'master',
-      filePath: giteeConfig.value.filePath || 'retire-config.json',
-    };
-    
-    const result = await loadFromGitee(config);
-    if (!result) {
-      syncStatus.value = { type: 'error', message: 'Gitee 上暂无配置文件' };
-      return;
+    await configStore.flush();
+    syncStatus.value = { type: 'success', message: '同步完成' };
+  } catch (e: any) {
+    syncStatus.value = { type: 'error', message: `同步失败: ${e.message || e}` };
+  } finally {
+    syncing.value = false;
+  }
+}
+
+// 获取同步状态徽章
+function getSyncBadgeClass(backendId: string): string {
+  const statuses = configStore.getSyncStatuses();
+  for (const [pairId, status] of statuses) {
+    if (pairId.includes(backendId)) {
+      if (status.state === 'syncing') return 'sync-badge-syncing';
+      if (status.state === 'disposed') return 'sync-badge-error';
+      if (status.state === 'paused') return 'sync-badge-unknown';
+      return 'sync-badge-ok';
     }
-    
-    await importDb(result.content);
-    syncStatus.value = { type: 'success', message: '已成功从 Gitee 加载，即将刷新页面...' };
-    
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
-  } catch (e: any) {
-    syncStatus.value = { type: 'error', message: `加载失败: ${e.message}` };
-  } finally {
-    syncing.value = false;
   }
+  return 'sync-badge-unknown';
+}
+
+function getSyncBadgeText(backendId: string): string {
+  const statuses = configStore.getSyncStatuses();
+  for (const [pairId, status] of statuses) {
+    if (pairId.includes(backendId)) {
+      if (status.state === 'syncing') return '同步中';
+      if (status.state === 'disposed') return '已断开';
+      if (status.state === 'paused') return '已暂停';
+      if (status.state === 'watching') return '自动同步';
+      return '已同步';
+    }
+  }
+  return '未知';
 }
 </script>
 
@@ -446,6 +441,77 @@ async function syncFromGitee() {
 .sync-status.error {
   background: rgba(255, 77, 79, 0.1);
   color: var(--danger, #ff4d4f);
+}
+
+/* 后端列表 */
+.backend-list {
+  margin-bottom: 12px;
+}
+
+.backend-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.backend-item:last-child {
+  border-bottom: none;
+}
+
+.backend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backend-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.backend-desc {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.backend-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.sync-badge-ok {
+  background: rgba(82, 196, 26, 0.15);
+  color: var(--success, #52c41a);
+}
+
+.sync-badge-syncing {
+  background: rgba(24, 144, 255, 0.15);
+  color: var(--primary, #1890ff);
+}
+
+.sync-badge-error {
+  background: rgba(255, 77, 79, 0.15);
+  color: var(--danger, #ff4d4f);
+}
+
+.sync-badge-unknown {
+  background: rgba(150, 150, 150, 0.15);
+  color: var(--text-light);
+}
+
+.btn-danger {
+  color: var(--danger, #ff4d4f);
+  border-color: var(--danger, #ff4d4f);
 }
 
 .version-info {

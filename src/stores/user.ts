@@ -1,28 +1,31 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { UserConfig } from '../types';
-import { putDoc, getDoc } from '../db';
+import { useConfigStore } from './config';
 
 export const useUserStore = defineStore('user', () => {
   const config = ref<UserConfig | null>(null);
 
-  const DOC_ID = 'user_config_profile';
-
-  // 加载用户配置
+  // 加载用户配置（从 zen-fs-config 配置仓库读取）
   async function loadConfig() {
     try {
-      const doc = await getDoc(DOC_ID);
-      if (doc) {
-        config.value = doc as UserConfig;
+      const configStore = useConfigStore();
+      const data = configStore.getUserConfig();
+      if (data) {
         // 兼容旧数据：补充新增字段的默认值
-        if (config.value) {
-          const d = config.value.data as any;
-          if (d.actualRetireAge === undefined) d.actualRetireAge = 65;
-          // 兼容旧数据：将 birthDate 转换为 birthYear
-          if (d.birthYear === undefined && d.birthDate) {
-            d.birthYear = new Date(d.birthDate).getFullYear();
-          }
+        const d = data as any;
+        if (d.actualRetireAge === undefined) d.actualRetireAge = 65;
+        if (d.birthYear === undefined && d.birthDate) {
+          d.birthYear = new Date(d.birthDate).getFullYear();
         }
+        // 构造完整文档对象以保持向后兼容
+        config.value = {
+          _id: 'user_config_profile',
+          type: 'user_config',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          data: JSON.parse(JSON.stringify(d)),
+        };
       } else {
         config.value = null;
       }
@@ -31,32 +34,19 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // 保存用户配置
+  // 保存用户配置（写入 zen-fs-config 配置仓库，自动同步到副本后端）
   async function saveConfig(data: UserConfig['data']) {
-    const now = new Date().toISOString();
-    // 深拷贝 data，确保去除 Vue reactive proxy
+    const configStore = useConfigStore();
     const plainData = JSON.parse(JSON.stringify(data));
-    if (config.value) {
-      const updated: UserConfig = {
-        _id: DOC_ID,
-        type: 'user_config' as const,
-        createdAt: config.value.createdAt,
-        updatedAt: now,
-        data: plainData,
-      };
-      await putDoc(updated);
-      config.value = updated;
-    } else {
-      const newDoc: UserConfig = {
-        _id: DOC_ID,
-        type: 'user_config',
-        createdAt: now,
-        updatedAt: now,
-        data: plainData,
-      };
-      await putDoc(newDoc);
-      config.value = newDoc;
-    }
+    configStore.setUserConfig(plainData);
+    // 更新本地 state
+    config.value = {
+      _id: 'user_config_profile',
+      type: 'user_config',
+      createdAt: config.value?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      data: plainData,
+    };
   }
 
   // 是否已配置

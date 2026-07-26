@@ -4,6 +4,7 @@ import type { PensionRecord, PensionConfig, PensionPhase } from '../types';
 import type { FlexPlan } from '../utils/pensionCompare';
 import { putDoc, getDoc, getAllDocs, removeDoc } from '../db';
 import { calculatePension, calculateSufficiency, expandPhasesToRecords, type PensionCalculationResult, type SufficiencyResult } from '../utils/pensionCalc';
+import { useConfigStore } from './config';
 
 export const usePensionStore = defineStore('pension', () => {
   // ============ State ============
@@ -66,44 +67,37 @@ export const usePensionStore = defineStore('pension', () => {
 
   // ============ Actions ============
 
-  /** 加载养老金配置 */
+  /** 加载养老金配置（从 zen-fs-config 配置仓库读取） */
   async function loadConfig() {
     try {
-      const doc = await getDoc(CONFIG_DOC_ID);
-      if (doc) {
-        config.value = doc as PensionConfig;
+      const configStore = useConfigStore();
+      const data = configStore.getPensionConfig();
+      if (data) {
+        config.value = {
+          _id: CONFIG_DOC_ID,
+          type: 'pension_config',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          data: JSON.parse(JSON.stringify(data)),
+        };
       }
     } catch {
       config.value = null;
     }
   }
 
-  /** 保存养老金配置 */
+  /** 保存养老金配置（写入 zen-fs-config 配置仓库，自动同步到副本后端） */
   async function saveConfig(data: PensionConfig['data']) {
-    const now = new Date().toISOString();
+    const configStore = useConfigStore();
     const plainData = JSON.parse(JSON.stringify(data));
-
-    if (config.value) {
-      const updated: PensionConfig = {
-        _id: CONFIG_DOC_ID,
-        type: 'pension_config',
-        createdAt: config.value.createdAt,
-        updatedAt: now,
-        data: plainData,
-      };
-      await putDoc(updated);
-      config.value = updated;
-    } else {
-      const newDoc: PensionConfig = {
-        _id: CONFIG_DOC_ID,
-        type: 'pension_config',
-        createdAt: now,
-        updatedAt: now,
-        data: plainData,
-      };
-      await putDoc(newDoc);
-      config.value = newDoc;
-    }
+    configStore.setPensionConfig(plainData);
+    config.value = {
+      _id: CONFIG_DOC_ID,
+      type: 'pension_config',
+      createdAt: config.value?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      data: plainData,
+    };
   }
 
   /** 加载缴存记录 */

@@ -9,11 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@zenfs/core": "^2.6.1",
+    "@zenfs/dom": "^1.2.10",
     "idb": "^8.0.3",
     "pdfjs-dist": "^3.11.174",
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "zen-fs-config": "^0.4.5",
+    "zen-fs-gitee": "^1.2.1",
+    "zen-fs-sync": "^0.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.12.3",

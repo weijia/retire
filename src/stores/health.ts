@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import type { HealthProfile, HealthDailyRecord, LifeExpectancySnapshot } from '../types';
 import { putDoc, getDoc, getAllDocs, removeDoc } from '../db';
 import { calculateLifeExpectancy, generateSuggestions, type LifeExpectancyResult } from '../utils/lifeExpectancy';
+import { useConfigStore } from './config';
 
 export const useHealthStore = defineStore('health', () => {
   // ============ State ============
@@ -55,44 +56,37 @@ export const useHealthStore = defineStore('health', () => {
 
   // ============ Actions ============
 
-  /** 加载健康画像 */
+  /** 加载健康画像（从 zen-fs-config 配置仓库读取） */
   async function loadProfile() {
     try {
-      const doc = await getDoc(PROFILE_DOC_ID);
-      if (doc) {
-        profile.value = doc as HealthProfile;
+      const configStore = useConfigStore();
+      const data = configStore.getHealthProfile();
+      if (data) {
+        profile.value = {
+          _id: PROFILE_DOC_ID,
+          type: 'health_profile',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          data: JSON.parse(JSON.stringify(data)),
+        };
       }
     } catch {
       profile.value = null;
     }
   }
 
-  /** 保存健康画像 */
+  /** 保存健康画像（写入 zen-fs-config 配置仓库，自动同步到副本后端） */
   async function saveProfile(data: HealthProfile['data']) {
-    const now = new Date().toISOString();
+    const configStore = useConfigStore();
     const plainData = JSON.parse(JSON.stringify(data));
-
-    if (profile.value) {
-      const updated: HealthProfile = {
-        _id: PROFILE_DOC_ID,
-        type: 'health_profile',
-        createdAt: profile.value.createdAt,
-        updatedAt: now,
-        data: plainData,
-      };
-      await putDoc(updated);
-      profile.value = updated;
-    } else {
-      const newDoc: HealthProfile = {
-        _id: PROFILE_DOC_ID,
-        type: 'health_profile',
-        createdAt: now,
-        updatedAt: now,
-        data: plainData,
-      };
-      await putDoc(newDoc);
-      profile.value = newDoc;
-    }
+    configStore.setHealthProfile(plainData);
+    profile.value = {
+      _id: PROFILE_DOC_ID,
+      type: 'health_profile',
+      createdAt: profile.value?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      data: plainData,
+    };
   }
 
   /** 加载每日记录 */
