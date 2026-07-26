@@ -161,6 +161,11 @@ export function registerRemoteStorageBackend(): void {
     async (options) => {
       const { createRemoteStorageFileSystem } = await import('zen-fs-remotestoragejs');
       const fs = createRemoteStorageFileSystem(options as any);
+      // RemoteStorageFileSystem.touch() 会抛出异常 "Touch operation not supported"，
+      // 但 wrapZenFSFileSystem 的 writeFile 会在写入后调用 touch 更新元数据。
+      // RemoteStorage 的文件元数据（size/mtime）由服务器管理，客户端 touch 无意义，
+      // 因此覆盖为 no-op 以避免同步失败。
+      (fs as any).touch = async () => {};
       return wrapZenFSFileSystem(fs as any);
     },
     rsMetadata,
