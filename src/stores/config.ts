@@ -69,17 +69,29 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   /**
+   * 安全读取配置：不存在时返回 undefined 而非抛异常
+   * zen-fs-config 的 getConfig() 在缓存中没有 key 时会抛异常
+   */
+  function safeGetConfig<T>(path: string): T | undefined {
+    try {
+      return getRepo().getConfig<T>(path);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * 从 zen-fs-config 加载全部配置到内存
    * 包含一次性迁移逻辑：如果 zen-fs-config 中没有配置，从旧 IndexedDB 读取
    */
   async function loadAll() {
     const repo = getRepo();
 
-    // 同步读取（从内存缓存）
-    let user = repo.getConfig<UserConfig['data']>(PATHS.user);
-    let pension = repo.getConfig<PensionConfig['data']>(PATHS.pension);
-    let health = repo.getConfig<HealthProfile['data']>(PATHS.health);
-    let sync = repo.getConfig<GiteeSyncConfig['data']>(PATHS.sync);
+    // 同步读取（从内存缓存，不存在时返回 undefined）
+    let user = safeGetConfig<UserConfig['data']>(PATHS.user);
+    let pension = safeGetConfig<PensionConfig['data']>(PATHS.pension);
+    let health = safeGetConfig<HealthProfile['data']>(PATHS.health);
+    let sync = safeGetConfig<GiteeSyncConfig['data']>(PATHS.sync);
 
     // ============ 一次性迁移：从旧 IndexedDB 读取 ============
     let migrated = false;
