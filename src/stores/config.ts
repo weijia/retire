@@ -22,6 +22,7 @@ import type {
   HealthProfile,
   GiteeSyncConfig,
 } from '../types';
+import type { DataSyncConfig } from '../utils/dataSync';
 import { getDoc } from '../db';
 
 // 配置路径常量（zen-fs-config 自动加 .json 后缀）
@@ -30,6 +31,7 @@ const PATHS = {
   pension: '/pension',
   health: '/health',
   sync: '/sync',
+  dataSync: '/data-sync',
 } as const;
 
 // 旧 IndexedDB 中的文档 ID（用于一次性迁移）
@@ -46,6 +48,7 @@ export const useConfigStore = defineStore('config', () => {
   const pensionConfig = ref<PensionConfig['data'] | null>(null);
   const healthProfile = ref<HealthProfile['data'] | null>(null);
   const syncConfig = ref<GiteeSyncConfig['data'] | null>(null);
+  const dataSyncConfig = ref<DataSyncConfig | null>(null);
   const loaded = ref(false);
   const backends = ref<Array<{ id: string; type: string; description?: string }>>([]);
   const backendMetadata = ref<BackendMetadata[]>([]);
@@ -93,6 +96,7 @@ export const useConfigStore = defineStore('config', () => {
     let pension = safeGetConfig<PensionConfig['data']>(PATHS.pension);
     let health = safeGetConfig<HealthProfile['data']>(PATHS.health);
     let sync = safeGetConfig<GiteeSyncConfig['data']>(PATHS.sync);
+    let dataSync = safeGetConfig<DataSyncConfig>(PATHS.dataSync);
 
     // ============ 一次性迁移：从旧 IndexedDB 读取 ============
     let migrated = false;
@@ -147,6 +151,27 @@ export const useConfigStore = defineStore('config', () => {
       } catch { /* 忽略 */ }
     }
 
+    // 迁移旧 Gitee 业务数据备份配置到新的 dataSync 配置
+    if (!dataSync && sync) {
+      const s = sync as GiteeSyncConfig['data'];
+      if (s.token && s.owner && s.repo) {
+        dataSync = {
+          backends: [{
+            id: 'gitee-data',
+            type: 'Gitee',
+            options: {
+              token: s.token,
+              owner: s.owner,
+              repo: s.repo,
+              branch: s.branch || 'master',
+            },
+          }],
+        };
+        repo.setConfig(PATHS.dataSync, dataSync);
+        migrated = true;
+      }
+    }
+
     if (migrated) {
       console.log('[ConfigStore] 已从旧存储迁移配置到 zen-fs-config');
       // 触发同步到已连接的副本后端
@@ -158,6 +183,7 @@ export const useConfigStore = defineStore('config', () => {
     pensionConfig.value = pension || null;
     healthProfile.value = health || null;
     syncConfig.value = sync || null;
+    dataSyncConfig.value = dataSync || null;
 
     // 加载后端拓扑
     try {
@@ -239,6 +265,18 @@ export const useConfigStore = defineStore('config', () => {
     const plainData = JSON.parse(JSON.stringify(data));
     repo.setConfig(PATHS.sync, plainData);
     syncConfig.value = plainData;
+  }
+
+  // ============ 业务数据同步配置 ============
+  function getDataSyncConfig(): DataSyncConfig | null {
+    return dataSyncConfig.value;
+  }
+
+  function setDataSyncConfig(data: DataSyncConfig) {
+    const repo = getRepo();
+    const plainData = JSON.parse(JSON.stringify(data));
+    repo.setConfig(PATHS.dataSync, plainData);
+    dataSyncConfig.value = plainData;
   }
 
   // ============ 后端管理 ============
@@ -364,6 +402,7 @@ export const useConfigStore = defineStore('config', () => {
     pensionConfig,
     healthProfile,
     syncConfig,
+    dataSyncConfig,
     loaded,
     backends,
     backendMetadata,
@@ -381,6 +420,9 @@ export const useConfigStore = defineStore('config', () => {
     // sync
     getSyncConfig,
     setSyncConfig,
+    // data sync
+    getDataSyncConfig,
+    setDataSyncConfig,
     // backends
     addGiteeBackend,
     addBackend,

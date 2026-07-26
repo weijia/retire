@@ -70,57 +70,90 @@
       </div>
     </div>
 
-    <!-- 业务数据：Gitee 云备份 -->
+    <!-- 业务数据：多后端云备份 -->
     <div class="card">
       <div class="card-title">业务数据云备份</div>
       <div class="form-hint" style="margin-bottom: 12px;">
-        将全部业务数据上传到 Gitee 仓库，或从 Gitee 恢复。
+        将全部业务数据上传到云端，或从云端恢复。
         <strong>注意：这是手动全量备份，不是自动同步。</strong>
+        <br/>后端配置保存在 zen-fs-config 中，会随配置云同步一起同步到所有设备。
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Gitee 令牌</label>
-        <input
-          v-model="dataBackupConfig.token"
-          type="password"
-          class="form-input"
-          placeholder="Gitee 私人令牌"
-        />
-      </div>
-      <div class="form-group">
-        <label class="form-label">用户名</label>
-        <input
-          v-model="dataBackupConfig.owner"
-          type="text"
-          class="form-input"
-          placeholder="Gitee 用户名"
-        />
-      </div>
-      <div class="form-group">
-        <label class="form-label">仓库名</label>
-        <input
-          v-model="dataBackupConfig.repo"
-          type="text"
-          class="form-input"
-          placeholder="仓库名称"
-        />
-      </div>
-      <div class="form-group">
-        <label class="form-label">分支名</label>
-        <input
-          v-model="dataBackupConfig.branch"
-          type="text"
-          class="form-input"
-          placeholder="默认 master"
-        />
+      <!-- 已配置的业务数据后端列表 -->
+      <div v-if="hasDataSyncBackend" class="backend-list">
+        <div class="form-group">
+          <label class="form-label">选择同步后端</label>
+          <select v-model="selectedDataBackendId" class="form-select">
+            <option v-for="b in dataSyncBackends" :key="b.id" :value="b.id">
+              {{ b.type }} — {{ b.id }}
+            </option>
+          </select>
+        </div>
+
+        <div v-for="b in dataSyncBackends" :key="b.id" class="backend-item">
+          <div class="backend-info">
+            <span class="backend-type">{{ b.type }}</span>
+            <span class="backend-desc">{{ b.id }}</span>
+          </div>
+          <div class="backend-actions">
+            <button class="btn btn-sm btn-danger" @click="removeDataSyncBackend(b.id)">
+              删除
+            </button>
+          </div>
+        </div>
+
+        <div class="data-actions" style="margin-top: 12px;">
+          <button class="btn btn-sm btn-primary" @click="uploadDataToSelectedBackend" :disabled="dataSyncing || !selectedDataBackend">
+            {{ dataSyncing ? '上传中...' : '上传备份' }}
+          </button>
+          <button class="btn btn-sm" @click="downloadDataFromSelectedBackend" :disabled="dataSyncing || !selectedDataBackend">
+            {{ dataSyncing ? '恢复中...' : '恢复备份' }}
+          </button>
+        </div>
       </div>
 
-      <div class="data-actions">
-        <button class="btn btn-sm btn-primary" @click="uploadDataToGitee" :disabled="dataSyncing || !isDataBackupConfigured">
-          {{ dataSyncing ? '上传中...' : '上传备份' }}
-        </button>
-        <button class="btn btn-sm" @click="downloadDataFromGitee" :disabled="dataSyncing || !isDataBackupConfigured">
-          {{ dataSyncing ? '恢复中...' : '恢复备份' }}
+      <!-- 添加业务数据同步后端（复用配置同步的动态表单） -->
+      <div v-if="configStore.backendMetadata.length > 0" class="backend-form" style="margin-top: 12px;">
+        <div class="card-title" style="font-size: 14px; margin-bottom: 8px;">添加业务数据同步后端</div>
+
+        <!-- 后端类型选择 -->
+        <div v-if="configStore.backendMetadata.length > 1" class="form-group">
+          <label class="form-label">后端类型</label>
+          <select v-model="selectedBackendType" class="form-select" @change="onBackendTypeChange">
+            <option v-for="m in configStore.backendMetadata" :key="m.type" :value="m.type">
+              {{ m.icon }} {{ m.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- 动态字段表单 -->
+        <div v-for="field in currentBackendFields" :key="field.key" class="form-group">
+          <label class="form-label">
+            {{ field.label }}
+            <span v-if="field.required" class="required-mark">*</span>
+          </label>
+          <input
+            v-model="backendFormValues[field.key]"
+            :type="field.type === 'password' ? 'password' : 'text'"
+            class="form-input"
+            :placeholder="field.placeholder || ''"
+          />
+        </div>
+
+        <!-- 后端 ID -->
+        <div class="form-group">
+          <label class="form-label">后端标识</label>
+          <input
+            v-model="backendId"
+            type="text"
+            class="form-input"
+            placeholder="用于标识此后端连接，如 gitee-data"
+          />
+          <div class="form-hint">自定义一个唯一标识，方便管理多个同步后端</div>
+        </div>
+
+        <button class="btn btn-sm btn-primary btn-block" @click="addDataSyncBackend" :disabled="!isBackendFormValid">
+          添加后端
         </button>
       </div>
 
@@ -255,7 +288,11 @@ import { usePlansStore } from '../stores/plans';
 import { useConfigStore } from '../stores/config';
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
-import { loadFromGitee, saveToGitee, type GiteeConfig } from '../utils/giteeSync';
+import {
+  uploadDataToBackend,
+  downloadDataFromBackend,
+  type DataSyncBackend,
+} from '../utils/dataSync';
 import type { GiteeSyncConfig } from '../types';
 import type { BackendParamDef } from 'zen-fs-config';
 
@@ -268,18 +305,10 @@ const saving = ref(false);
 const syncing = ref(false);
 const syncStatus = ref<{ type: 'success' | 'error'; message: string } | null>(null);
 
-// ============ 业务数据 Gitee 云备份 ============
+// ============ 业务数据多后端云备份 ============
 const dataSyncing = ref(false);
 const dataSyncStatus = ref<{ type: 'success' | 'error'; message: string } | null>(null);
-const dataBackupConfig = ref({
-  token: '',
-  owner: '',
-  repo: '',
-  branch: 'master',
-});
-const isDataBackupConfigured = computed(() => {
-  return dataBackupConfig.value.token && dataBackupConfig.value.owner && dataBackupConfig.value.repo;
-});
+const selectedDataBackendId = ref(''); // 当前选中的业务数据后端（用于上传/恢复）
 
 const form = ref({
   birthYear: 1990,
@@ -334,6 +363,11 @@ onMounted(async () => {
   if (configStore.backendMetadata.length > 0) {
     selectedBackendType.value = configStore.backendMetadata[0].type;
     onBackendTypeChange();
+  }
+
+  // 初始化业务数据同步后端选中项
+  if (configStore.dataSyncConfig?.backends && configStore.dataSyncConfig.backends.length > 0) {
+    selectedDataBackendId.value = configStore.dataSyncConfig.backends[0].id;
   }
 });
 
@@ -410,12 +444,71 @@ async function importData(event: Event) {
   }
 }
 
-// ============ 业务数据 Gitee 云备份 ============
+// ============ 业务数据多后端云备份 ============
 
-// 上传业务数据到 Gitee
-async function uploadDataToGitee() {
-  if (!isDataBackupConfigured.value) {
-    alert('请先填写 Gitee 配置');
+/** 当前已配置的业务数据同步后端列表 */
+const dataSyncBackends = computed<DataSyncBackend[]>(() => {
+  return configStore.dataSyncConfig?.backends || [];
+});
+
+/** 是否有已配置的业务数据后端 */
+const hasDataSyncBackend = computed(() => dataSyncBackends.value.length > 0);
+
+/** 获取选中的业务数据后端 */
+const selectedDataBackend = computed<DataSyncBackend | undefined>(() => {
+  return dataSyncBackends.value.find(b => b.id === selectedDataBackendId.value);
+});
+
+// 添加业务数据同步后端
+async function addDataSyncBackend() {
+  if (!isBackendFormValid.value) {
+    alert('请填写所有必填字段');
+    return;
+  }
+
+  const type = selectedBackendType.value;
+  const meta = configStore.backendMetadata.find(m => m.type === type);
+  const options: Record<string, unknown> = { ...backendFormValues.value };
+
+  const newBackend: DataSyncBackend = {
+    id: backendId.value,
+    type,
+    options,
+  };
+
+  const current = configStore.getDataSyncConfig();
+  const updated: DataSyncBackend[] = [...(current?.backends || []), newBackend];
+  configStore.setDataSyncConfig({ backends: updated });
+
+  // 如果这是第一个后端，自动选中它
+  if (updated.length === 1) {
+    selectedDataBackendId.value = newBackend.id;
+  }
+
+  dataSyncStatus.value = { type: 'success', message: `已添加 ${meta?.label || type} 业务数据后端` };
+}
+
+// 删除业务数据同步后端
+function removeDataSyncBackend(id: string) {
+  if (!confirm('确定删除该业务数据同步后端吗？')) return;
+
+  const current = configStore.getDataSyncConfig();
+  if (!current) return;
+
+  const updated = current.backends.filter(b => b.id !== id);
+  configStore.setDataSyncConfig({ backends: updated });
+
+  if (selectedDataBackendId.value === id) {
+    selectedDataBackendId.value = updated[0]?.id || '';
+  }
+
+  dataSyncStatus.value = { type: 'success', message: '后端已删除' };
+}
+
+// 上传业务数据到选中的后端
+async function uploadDataToSelectedBackend() {
+  if (!selectedDataBackend.value) {
+    alert('请先选择或添加一个业务数据同步后端');
     return;
   }
 
@@ -423,20 +516,8 @@ async function uploadDataToGitee() {
   dataSyncStatus.value = null;
 
   try {
-    const data = await exportDb();
-    const config: GiteeConfig = {
-      token: dataBackupConfig.value.token,
-      owner: dataBackupConfig.value.owner,
-      repo: dataBackupConfig.value.repo,
-      branch: dataBackupConfig.value.branch || 'master',
-      filePath: 'retire-data-backup.json',
-    };
-
-    // 先获取现有文件（需要 sha 才能更新）
-    const existing = await loadFromGitee(config);
-    await saveToGitee(config, data, existing?.sha);
-
-    dataSyncStatus.value = { type: 'success', message: '业务数据已上传到 Gitee' };
+    await uploadDataToBackend(selectedDataBackend.value);
+    dataSyncStatus.value = { type: 'success', message: '业务数据已上传' };
   } catch (e: any) {
     dataSyncStatus.value = { type: 'error', message: `上传失败: ${e.message || e}` };
   } finally {
@@ -444,14 +525,14 @@ async function uploadDataToGitee() {
   }
 }
 
-// 从 Gitee 恢复业务数据
-async function downloadDataFromGitee() {
-  if (!isDataBackupConfigured.value) {
-    alert('请先填写 Gitee 配置');
+// 从选中的后端恢复业务数据
+async function downloadDataFromSelectedBackend() {
+  if (!selectedDataBackend.value) {
+    alert('请先选择或添加一个业务数据同步后端');
     return;
   }
 
-  if (!confirm('从 Gitee 恢复将覆盖当前所有业务数据，确定继续吗？')) {
+  if (!confirm('恢复将覆盖当前所有业务数据，确定继续吗？')) {
     return;
   }
 
@@ -459,26 +540,9 @@ async function downloadDataFromGitee() {
   dataSyncStatus.value = null;
 
   try {
-    const config: GiteeConfig = {
-      token: dataBackupConfig.value.token,
-      owner: dataBackupConfig.value.owner,
-      repo: dataBackupConfig.value.repo,
-      branch: dataBackupConfig.value.branch || 'master',
-      filePath: 'retire-data-backup.json',
-    };
-
-    const result = await loadFromGitee(config);
-    if (!result) {
-      dataSyncStatus.value = { type: 'error', message: 'Gitee 上暂无备份数据' };
-      return;
-    }
-
-    await importDb(result.content);
-    dataSyncStatus.value = { type: 'success', message: '已从 Gitee 恢复数据，即将刷新页面...' };
-
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
+    await downloadDataFromBackend(selectedDataBackend.value);
+    dataSyncStatus.value = { type: 'success', message: '已恢复数据，即将刷新页面...' };
+    setTimeout(() => window.location.reload(), 1500);
   } catch (e: any) {
     dataSyncStatus.value = { type: 'error', message: `恢复失败: ${e.message || e}` };
   } finally {
