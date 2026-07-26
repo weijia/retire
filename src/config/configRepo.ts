@@ -4,7 +4,14 @@
  * IndexedDB 始终是本地主后端（offline-first），
  * 远程后端（Gitee 等）作为副本通过 addBackend() 添加后自动双向同步。
  */
-import { createConfigRepo, registerBackend, wrapZenFSFileSystem, type IConfigRepo } from 'zen-fs-config';
+import {
+  createConfigRepo,
+  registerBackend,
+  wrapZenFSFileSystem,
+  type IConfigRepo,
+  type BackendMetadata,
+  listBackendMetadata,
+} from 'zen-fs-config';
 
 // 全局单例
 let repoInstance: IConfigRepo | null = null;
@@ -16,18 +23,50 @@ const APP_ID = 'retire';
 let giteeRegistered = false;
 
 /**
- * 注册 Gitee 后端类型
+ * 注册 Gitee 后端类型（含 UI 元数据，用于设置页面动态生成表单）
  * 在初始化配置仓库前调用一次即可
  */
 export function registerGiteeBackend(): void {
   if (giteeRegistered) return;
-  registerBackend('Gitee', async (options) => {
-    const { Gitee } = await import('zen-fs-gitee');
-    const fs = await Gitee.create(options as any);
-    return wrapZenFSFileSystem(fs as any);
-  });
+
+  // Gitee 后端的 UI 元数据（字段定义 + 默认值）
+  const giteeMetadata: BackendMetadata = {
+    type: 'Gitee',
+    label: 'Gitee 仓库',
+    icon: '🔧',
+    fields: [
+      { key: 'token', label: '访问令牌', type: 'password', placeholder: 'Gitee 私人令牌', required: true },
+      { key: 'owner', label: '用户名', type: 'text', placeholder: 'Gitee 用户名', required: true },
+      { key: 'repo', label: '仓库名', type: 'text', placeholder: '仓库名称', required: true },
+      { key: 'branch', label: '分支名', type: 'text', placeholder: '默认 master' },
+    ],
+    defaultOptions: {
+      owner: '',
+      repo: '',
+      branch: 'master',
+      token: '',
+    },
+  };
+
+  registerBackend(
+    'Gitee',
+    async (options) => {
+      const { Gitee } = await import('zen-fs-gitee');
+      const fs = await Gitee.create(options as any);
+      return wrapZenFSFileSystem(fs as any);
+    },
+    giteeMetadata,
+  );
   giteeRegistered = true;
-  console.log('[ConfigRepo] Gitee 后端已注册');
+  console.log('[ConfigRepo] Gitee 后端已注册（含 UI 元数据）');
+}
+
+/**
+ * 列出所有已注册后端的 UI 元数据
+ * 用于设置页面动态生成后端配置表单
+ */
+export function getRegisteredBackendMetadata(): BackendMetadata[] {
+  return listBackendMetadata();
 }
 
 /**

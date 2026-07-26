@@ -14,8 +14,8 @@
  */
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { getConfigRepo } from '../config/configRepo';
-import type { IConfigRepo } from 'zen-fs-config';
+import { getConfigRepo, getRegisteredBackendMetadata } from '../config/configRepo';
+import type { IConfigRepo, BackendMetadata } from 'zen-fs-config';
 import type {
   UserConfig,
   PensionConfig,
@@ -48,6 +48,7 @@ export const useConfigStore = defineStore('config', () => {
   const syncConfig = ref<GiteeSyncConfig['data'] | null>(null);
   const loaded = ref(false);
   const backends = ref<Array<{ id: string; type: string; description?: string }>>([]);
+  const backendMetadata = ref<BackendMetadata[]>([]);
 
   // ============ 内部辅助 ============
   function getRepo(): IConfigRepo {
@@ -185,6 +186,9 @@ export const useConfigStore = defineStore('config', () => {
       }
     }
 
+    // 加载已注册后端的 UI 元数据（用于设置页面动态生成表单）
+    backendMetadata.value = getRegisteredBackendMetadata();
+
     loaded.value = true;
     console.log('[ConfigStore] 配置加载完成');
   }
@@ -253,6 +257,21 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   /**
+   * 添加任意类型的副本后端（通用方法）
+   * 根据后端元数据动态生成表单后调用此方法
+   */
+  async function addBackend(
+    id: string,
+    type: string,
+    options: Record<string, unknown>,
+    description?: string
+  ) {
+    const repo = getRepo();
+    await repo.addBackend(id, type, options, description);
+    await refreshBackends();
+  }
+
+  /**
    * 移除副本后端
    */
   async function removeBackend(id: string) {
@@ -298,6 +317,7 @@ export const useConfigStore = defineStore('config', () => {
     syncConfig,
     loaded,
     backends,
+    backendMetadata,
     // load
     loadAll,
     // user
@@ -314,6 +334,7 @@ export const useConfigStore = defineStore('config', () => {
     setSyncConfig,
     // backends
     addGiteeBackend,
+    addBackend,
     removeBackend,
     refreshBackends,
     flush,
