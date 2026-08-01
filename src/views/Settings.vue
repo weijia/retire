@@ -70,7 +70,7 @@
       </div>
     </div>
 
-    <!-- 云同步设置（统一入口） -->
+    <!-- 云同步设置（统一入口，不区分配置/数据） -->
     <div class="card">
       <div class="card-title">云同步</div>
       <div class="form-hint" style="margin-bottom: 12px;">
@@ -79,34 +79,18 @@
 
       <!-- 已配置的后端列表 -->
       <div v-if="hasAnyBackend" class="backend-list">
-        <div class="list-section-title">已配置的同步</div>
+        <div class="list-section-title">已配置的同步后端</div>
         
-        <!-- 配置同步后端 -->
-        <div v-for="b in configStore.backends" :key="'config-' + b.id" class="backend-item">
+        <div v-for="b in allBackends" :key="b.id" class="backend-item">
           <div class="backend-info">
             <span class="backend-type">{{ b.type }}</span>
-            <span class="backend-badge badge-config">配置同步</span>
             <span class="backend-desc">{{ b.description || b.id }}</span>
           </div>
           <div class="backend-actions">
-            <span class="sync-badge" :class="getSyncBadgeClass(b.id)">
-              {{ getSyncBadgeText(b.id) }}
+            <span v-if="b.syncState" class="sync-badge" :class="getSyncBadgeClass(b.syncState)">
+              {{ getSyncBadgeText(b.syncState) }}
             </span>
-            <button class="btn btn-sm btn-danger" @click="disconnectBackend(b.id)" :disabled="syncing">
-              删除
-            </button>
-          </div>
-        </div>
-
-        <!-- 数据同步后端 -->
-        <div v-for="b in dataSyncBackends" :key="'data-' + b.id" class="backend-item">
-          <div class="backend-info">
-            <span class="backend-type">{{ b.type }}</span>
-            <span class="backend-badge badge-data">数据同步</span>
-            <span class="backend-desc">{{ b.id }}</span>
-          </div>
-          <div class="backend-actions">
-            <button class="btn btn-sm btn-danger" @click="removeDataSyncBackend(b.id)" :disabled="syncing">
+            <button class="btn btn-sm btn-danger" @click="removeBackend(b)" :disabled="syncing">
               删除
             </button>
           </div>
@@ -115,14 +99,14 @@
         <!-- 手动同步按钮 -->
         <div class="data-actions" style="margin-top: 12px;">
           <button class="btn btn-sm" @click="manualSync" :disabled="syncing">
-            {{ syncing ? '同步中...' : '立即同步全部' }}
+            {{ syncing ? '同步中...' : '立即同步' }}
           </button>
         </div>
       </div>
 
-      <!-- 添加新后端（统一表单） -->
+      <!-- 添加新后端 -->
       <div v-if="configStore.backendMetadata.length > 0" class="backend-form" :class="{ 'mt-12': hasAnyBackend }">
-        <div class="list-section-title">{{ hasAnyBackend ? '添加更多同步' : '添加云同步' }}</div>
+        <div class="list-section-title">{{ hasAnyBackend ? '添加更多同步后端' : '添加云同步后端' }}</div>
 
         <!-- 后端类型选择 -->
         <div v-if="configStore.backendMetadata.length > 1" class="form-group">
@@ -160,51 +144,9 @@
           <div class="form-hint">自定义唯一标识，方便管理</div>
         </div>
 
-        <!-- 同步类型选择（根据当前状态智能调整选项） -->
-        <div class="form-group">
-          <label class="form-label">同步类型</label>
-          <select v-model="syncType" class="form-select">
-            <!-- 没有任何后端时的选项 -->
-            <template v-if="!hasConfigBackend && !hasDataBackend">
-              <option value="config">配置同步（推荐）</option>
-              <option value="data">数据同步</option>
-              <option value="both">同时同步配置和数据</option>
-            </template>
-            <!-- 已有配置同步，没有数据同步 -->
-            <template v-else-if="hasConfigBackend && !hasDataBackend">
-              <option value="config">配置同步（已配置）</option>
-              <option value="data">数据同步</option>
-              <option value="both">同时同步配置和数据</option>
-            </template>
-            <!-- 已有数据同步，没有配置同步 -->
-            <template v-else-if="!hasConfigBackend && hasDataBackend">
-              <option value="config">配置同步</option>
-              <option value="data">数据同步（已配置）</option>
-            </template>
-            <!-- 两者都有 -->
-            <template v-else>
-              <option value="config">配置同步（已配置）</option>
-              <option value="data">数据同步（已配置）</option>
-            </template>
-          </select>
-          <div class="form-hint">
-            <span v-if="syncType === 'config'">同步个人设置、养老金参数、健康画像</span>
-            <span v-else-if="syncType === 'data'">同步消费记录、资产账户、养老金记录等业务数据</span>
-            <span v-else>配置和数据使用同一后端同步</span>
-          </div>
-        </div>
-
         <button class="btn btn-sm btn-primary btn-block" @click="addSyncBackend" :disabled="syncing || !isBackendFormValid">
           {{ syncing ? '连接中...' : '添加并同步' }}
         </button>
-      </div>
-
-      <!-- 添加数据同步的提示（当已有配置同步但没有数据同步时） -->
-      <div v-if="showAddDataSyncHint" class="sync-hint-box">
-        <div class="hint-content">
-          <span>💡 您已配置配置同步，建议也添加数据同步以备份业务数据。</span>
-          <button class="btn btn-sm btn-outline" @click="startAddDataSync">添加数据同步</button>
-        </div>
       </div>
 
       <div v-if="syncStatus" class="sync-status" :class="syncStatus.type">
@@ -259,21 +201,46 @@ const saving = ref(false);
 const syncing = ref(false);
 const syncStatus = ref<{ type: 'success' | 'error'; message: string } | null>(null);
 
-// ============ 同步类型选择 ============
-const syncType = ref<'config' | 'data' | 'both'>('config');
-
 // ============ 后端状态计算 ============
 const hasConfigBackend = computed(() => configStore.backends.length > 0);
 const hasDataBackend = computed(() => dataSyncStore.dataBackends.length > 0);
 const hasAnyBackend = computed(() => hasConfigBackend.value || hasDataBackend.value);
 
-// 是否显示"添加数据同步"提示
-const showAddDataSyncHint = computed(() => {
-  return hasConfigBackend.value && !hasDataBackend.value;
-});
+// 统一的后端列表（合并配置同步和数据同步）
+interface UnifiedBackend {
+  id: string;
+  type: string;
+  description?: string;
+  syncState?: string;
+  isConfigSync: boolean;
+}
 
-// 数据同步后端列表
-const dataSyncBackends = computed(() => dataSyncStore.dataBackends);
+const allBackends = computed<UnifiedBackend[]>(() => {
+  const result: UnifiedBackend[] = [];
+  
+  // 添加配置同步后端
+  for (const b of configStore.backends) {
+    result.push({
+      id: b.id,
+      type: b.type,
+      description: b.description,
+      syncState: configStore.getBackendSyncState(b.id),
+      isConfigSync: true,
+    });
+  }
+  
+  // 添加数据同步后端
+  for (const b of dataSyncStore.dataBackends) {
+    result.push({
+      id: b.id,
+      type: b.type,
+      description: b.description,
+      isConfigSync: false,
+    });
+  }
+  
+  return result;
+});
 
 const form = ref({
   birthYear: 1990,
@@ -332,13 +299,6 @@ onMounted(async () => {
 
   // 初始化数据同步 store
   await dataSyncStore.init();
-  
-  // 根据当前状态智能设置默认同步类型
-  if (hasConfigBackend.value && !hasDataBackend.value) {
-    syncType.value = 'data';
-  } else if (!hasConfigBackend.value && hasDataBackend.value) {
-    syncType.value = 'config';
-  }
 });
 
 async function save() {
@@ -414,7 +374,7 @@ async function importData(event: Event) {
   }
 }
 
-// 添加同步后端（根据 syncType 决定同步类型）
+// 添加同步后端（默认同时同步配置和数据）
 async function addSyncBackend() {
   if (!isBackendFormValid.value) {
     alert('请填写所有必填字段');
@@ -430,64 +390,40 @@ async function addSyncBackend() {
     const options: Record<string, unknown> = { ...backendFormValues.value };
     const id = backendId.value;
 
-    // 根据同步类型添加后端
-    if (syncType.value === 'config' || syncType.value === 'both') {
-      // 添加配置同步后端
-      await configStore.addBackend(
-        id,
-        type,
-        options,
-        `${meta?.label || type} 配置同步`,
-      );
+    // 同时添加配置同步和数据同步
+    // 1. 添加配置同步后端
+    await configStore.addBackend(
+      id,
+      type,
+      options,
+      `${meta?.label || type} 同步`,
+    );
 
-      // 仅 Gitee 后端保存旧格式同步配置
-      if (type === 'Gitee') {
-        const syncData: GiteeSyncConfig['data'] = {
-          token: backendFormValues.value.token || '',
-          owner: backendFormValues.value.owner || '',
-          repo: backendFormValues.value.repo || '',
-          branch: backendFormValues.value.branch || 'master',
-          filePath: 'retire-config.json',
-        };
-        configStore.setSyncConfig(syncData);
-      }
+    // 仅 Gitee 后端保存旧格式同步配置
+    if (type === 'Gitee') {
+      const syncData: GiteeSyncConfig['data'] = {
+        token: backendFormValues.value.token || '',
+        owner: backendFormValues.value.owner || '',
+        repo: backendFormValues.value.repo || '',
+        branch: backendFormValues.value.branch || 'master',
+        filePath: 'retire-config.json',
+      };
+      configStore.setSyncConfig(syncData);
     }
 
-    if (syncType.value === 'data' || syncType.value === 'both') {
-      // 添加数据同步后端
-      // 如果是 'both' 模式，复用刚添加的配置后端
-      if (syncType.value === 'both' && configStore.backends.length > 0) {
-        const accountBackendId = id;
-        await dataSyncStore.addBackend(
-          `${id}-data`,
-          type,
-          {
-            repo: backendFormValues.value.repo,
-            branch: backendFormValues.value.branch || 'master',
-          },
-          accountBackendId,
-          `${meta?.label || type} 数据同步`
-        );
-      } else {
-        // 'data' 模式：直接添加数据后端（不复用账号）
-        await dataSyncStore.addBackend(
-          id,
-          type,
-          options,
-          '', // 无账号复用
-          `${meta?.label || type} 数据同步`
-        );
-      }
-    }
+    // 2. 添加数据同步后端（复用配置同步的账号）
+    await dataSyncStore.addBackend(
+      `${id}-data`,
+      type,
+      {
+        repo: backendFormValues.value.repo,
+        branch: backendFormValues.value.branch || 'master',
+      },
+      id, // 复用配置同步后端的账号
+      `${meta?.label || type} 数据同步`
+    );
 
-    const syncTypeText = syncType.value === 'config' ? '配置' : 
-                          syncType.value === 'data' ? '数据' : '配置和数据';
-    syncStatus.value = { type: 'success', message: `已添加 ${meta?.label || type} ${syncTypeText}同步` };
-    
-    // 添加成功后，根据当前状态更新默认同步类型
-    if (hasConfigBackend.value && !hasDataBackend.value) {
-      syncType.value = 'data';
-    }
+    syncStatus.value = { type: 'success', message: `已添加 ${meta?.label || type} 云同步` };
   } catch (e: any) {
     syncStatus.value = { type: 'error', message: `添加失败: ${e.message || e}` };
   } finally {
@@ -495,38 +431,19 @@ async function addSyncBackend() {
   }
 }
 
-// 点击"添加数据同步"提示按钮
-function startAddDataSync() {
-  syncType.value = 'data';
-  // 滚动到表单
-  const form = document.querySelector('.backend-form');
-  if (form) {
-    form.scrollIntoView({ behavior: 'smooth' });
-  }
-}
-
-// 删除数据同步后端
-async function removeDataSyncBackend(id: string) {
-  if (!confirm('确定删除该数据同步后端吗？')) return;
+// 删除后端
+async function removeBackend(b: UnifiedBackend) {
+  if (!confirm('删除后将移除该同步后端，确定继续吗？')) return;
 
   syncing.value = true;
   try {
-    await dataSyncStore.removeBackend(id);
-    syncStatus.value = { type: 'success', message: '后端已删除' };
-  } catch (e: any) {
-    syncStatus.value = { type: 'error', message: `删除失败: ${e.message || e}` };
-  } finally {
-    syncing.value = false;
-  }
-}
-
-// 删除后端（完全移除同步连接）
-async function disconnectBackend(id: string) {
-  if (!confirm('删除后将完全移除该后端连接及其配置，确定继续吗？')) return;
-
-  syncing.value = true;
-  try {
-    await configStore.removeBackend(id);
+    if (b.isConfigSync) {
+      // 删除配置同步后端
+      await configStore.removeBackend(b.id);
+    } else {
+      // 删除数据同步后端
+      await dataSyncStore.removeBackend(b.id);
+    }
     syncStatus.value = { type: 'success', message: '后端已删除' };
   } catch (e: any) {
     syncStatus.value = { type: 'error', message: `删除失败: ${e.message || e}` };
@@ -549,9 +466,8 @@ async function manualSync() {
   }
 }
 
-// 获取同步状态徽章
-function getSyncBadgeClass(backendId: string): string {
-  const state = configStore.getBackendSyncState(backendId);
+// 获取同步状态徽章样式
+function getSyncBadgeClass(state: string): string {
   if (state === 'syncing') return 'sync-badge-syncing';
   if (state === 'disposed') return 'sync-badge-error';
   if (state === 'paused') return 'sync-badge-unknown';
@@ -559,8 +475,7 @@ function getSyncBadgeClass(backendId: string): string {
   return 'sync-badge-unknown';
 }
 
-function getSyncBadgeText(backendId: string): string {
-  const state = configStore.getBackendSyncState(backendId);
+function getSyncBadgeText(state: string): string {
   if (state === 'syncing') return '同步中';
   if (state === 'disposed') return '已断开';
   if (state === 'paused') return '已暂停';
@@ -615,24 +530,6 @@ function getSyncBadgeText(backendId: string): string {
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 8px;
-}
-
-/* 后端类型徽章 */
-.backend-badge {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 4px;
-}
-
-.badge-config {
-  background: rgba(24, 144, 255, 0.1);
-  color: var(--primary, #1890ff);
-}
-
-.badge-data {
-  background: rgba(82, 196, 26, 0.1);
-  color: var(--success, #52c41a);
 }
 
 /* 必填标记 */
@@ -710,37 +607,6 @@ function getSyncBadgeText(backendId: string): string {
 
 .btn-danger:active {
   background: rgba(255, 77, 79, 0.1);
-}
-
-.btn-outline {
-  background: transparent;
-  color: var(--primary, #1890ff);
-  border: 1px solid var(--primary, #1890ff);
-}
-
-.btn-outline:active {
-  background: rgba(24, 144, 255, 0.1);
-}
-
-/* 添加数据同步提示框 */
-.sync-hint-box {
-  margin-top: 12px;
-  padding: 12px;
-  background: rgba(24, 144, 255, 0.05);
-  border: 1px solid rgba(24, 144, 255, 0.2);
-  border-radius: var(--radius);
-}
-
-.hint-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.hint-content span {
-  font-size: 13px;
-  color: var(--text-secondary);
 }
 
 .mt-12 {
