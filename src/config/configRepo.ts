@@ -47,7 +47,7 @@ export function registerGiteeBackend(): void {
       branch: 'master',
       token: '',
     },
-    // 关键：声明可被 data-sync 后端复用的账号字段
+    // 声明可被 data-sync 后端复用的账号字段
     accountFields: ['token', 'owner'],
   };
 

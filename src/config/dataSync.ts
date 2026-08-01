@@ -1,11 +1,11 @@
 /**
  * 数据同步管理模块
  *
- * 使用 zen-fs-config 的 data-sync 功能同步业务数据。
+ * 使用 zen-fs-config 0.5.0 的 data-sync 功能同步业务数据。
  * 支持分类存储：消费记录、资产账户、养老金记录、健康记录、消费计划等。
  */
 import { getConfigRepo } from './configRepo';
-import type { IConfigRepo, AppDataGroup } from 'zen-fs-config';
+import type { AppDataGroup } from 'zen-fs-config';
 
 // 数据同步组单例
 let dataGroupInstance: AppDataGroup | null = null;
@@ -77,7 +77,7 @@ export async function addDataBackend(
   backendType: string,
   options: Record<string, unknown>,
   accountBackendId: string,
-  description?: string
+  _description?: string
 ): Promise<void> {
   const group = getDataGroup();
   const repo = getConfigRepo();
@@ -137,6 +137,18 @@ export async function flushDataSync(): Promise<void> {
 // ============ 数据读写操作 ============
 
 /**
+ * 确保数据目录存在
+ */
+async function ensureDataDir(): Promise<void> {
+  const group = getDataGroup();
+  try {
+    await group.fs.promises.mkdir('/data', { recursive: true });
+  } catch {
+    // 目录可能已存在，忽略错误
+  }
+}
+
+/**
  * 读取数据文件
  */
 async function readDataFile<T>(path: string): Promise<T | null> {
@@ -154,8 +166,7 @@ async function readDataFile<T>(path: string): Promise<T | null> {
  */
 async function writeDataFile<T>(path: string, data: T): Promise<void> {
   const group = getDataGroup();
-  // 确保目录存在
-  await group.fs.promises.mkdir('/data', { recursive: true }).catch(() => {});
+  await ensureDataDir();
   await group.fs.promises.writeFile(path, JSON.stringify(data, null, 2));
 }
 

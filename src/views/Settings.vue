@@ -296,7 +296,6 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { usePlansStore } from '../stores/plans';
 import { useConfigStore } from '../stores/config';
-import { useDataSyncStore } from '../stores/dataSyncStore';
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
 import DataSyncSettings from '../components/DataSyncSettings.vue';
@@ -312,7 +311,6 @@ const router = useRouter();
 const userStore = useUserStore();
 const plansStore = usePlansStore();
 const configStore = useConfigStore();
-const dataSyncStore = useDataSyncStore();
 
 const saving = ref(false);
 const syncing = ref(false);
