@@ -6,6 +6,7 @@ import './styles/global.css';
 import { createIndexes } from './db/indexes';
 import { initConfigRepo } from './config/configRepo';
 import { useConfigStore } from './stores/config';
+import { useDataSyncStore } from './stores/dataSyncStore';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -67,6 +68,11 @@ initConfigRepo()
   .then(() => {
     const configStore = useConfigStore(pinia);
     return configStore.loadAll();
+  })
+  .then(() => {
+    // 初始化数据同步
+    const dataSyncStore = useDataSyncStore(pinia);
+    return dataSyncStore.init();
   })
   .then(() => {
     app.mount('#app');

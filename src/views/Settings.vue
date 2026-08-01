@@ -162,6 +162,16 @@
       </div>
     </div>
 
+    <!-- 数据自动同步（data-sync） -->
+    <div class="card">
+      <div class="card-title">数据自动同步</div>
+      <div class="form-hint" style="margin-bottom: 12px;">
+        将业务数据（消费记录、资产账户等）自动同步到云端。
+        <strong>支持多后端同步，数据会自动同步到所有配置的后端。</strong>
+      </div>
+      <DataSyncSettings />
+    </div>
+
     <!-- 配置云同步（zen-fs-config） -->
     <div class="card">
       <div class="card-title">配置云同步</div>
@@ -286,8 +296,10 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { usePlansStore } from '../stores/plans';
 import { useConfigStore } from '../stores/config';
+import { useDataSyncStore } from '../stores/dataSyncStore';
 import { exportDb, importDb } from '../db';
 import { versionDisplay, buildTimeDisplay } from '../version';
+import DataSyncSettings from '../components/DataSyncSettings.vue';
 import {
   uploadDataToBackend,
   downloadDataFromBackend,
@@ -300,6 +312,7 @@ const router = useRouter();
 const userStore = useUserStore();
 const plansStore = usePlansStore();
 const configStore = useConfigStore();
+const dataSyncStore = useDataSyncStore();
 
 const saving = ref(false);
 const syncing = ref(false);

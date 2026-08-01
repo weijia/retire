@@ -47,6 +47,8 @@ export function registerGiteeBackend(): void {
       branch: 'master',
       token: '',
     },
+    // 关键：声明可被 data-sync 后端复用的账号字段
+    accountFields: ['token', 'owner'],
   };
 
   registerBackend(
@@ -91,6 +93,8 @@ export function registerWebDAVBackend(): void {
       password: '',
       token: '',
     },
+    // 声明可被 data-sync 后端复用的账号字段
+    accountFields: ['baseUrl', 'username', 'password', 'token'],
   };
 
   registerBackend(
@@ -154,6 +158,8 @@ export function registerRemoteStorageBackend(): void {
       token: '',
       basePath: '/retire-config',
     },
+    // 声明可被 data-sync 后端复用的账号字段
+    accountFields: ['href', 'token'],
   };
 
   registerBackend(
