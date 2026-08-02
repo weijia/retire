@@ -16,7 +16,7 @@
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
     "vue-router": "^4.6.4",
-    "zen-fs-config": "^0.5.0",
+    "zen-fs-config": "^0.5.1",
     "zen-fs-gitee": "^1.2.1",
     "zen-fs-remotestoragejs": "^1.2.14",
     "zen-fs-sync": "^0.4.3",
