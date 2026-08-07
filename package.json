@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@zenfs/core": "^2.6.1",
+    "@zenfs/core": "^2.6.2",
     "@zenfs/dom": "^1.2.10",
     "idb": "^8.0.3",
     "pdfjs-dist": "^3.11.174",
@@ -18,9 +18,9 @@
     "vue-router": "^4.6.4",
     "zen-fs-cache": "^1.0.2",
     "zen-fs-config": "github:weijia/zen-fs-config",
-    "zen-fs-gitee": "^1.2.1",
-    "zen-fs-remotestoragejs": "^1.2.14",
-    "zen-fs-sync": "^0.4.3",
+    "zen-fs-gitee": "^1.2.8",
+    "zen-fs-remotestoragejs": "^1.2.25",
+    "zen-fs-sync": "^0.4.5",
     "zen-fs-webdav": "^0.1.2"
   },
   "devDependencies": {
