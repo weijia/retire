@@ -64,6 +64,7 @@ export function registerGiteeBackend(): void {
   registerBackend(
     'Gitee',
     async (options) => {
+      console.log('[ConfigRepo] 调用 registerBackend("Gitee", ...)');
       const { Gitee } = await import('zen-fs-gitee');
       const fs = await Gitee.create(options as any);
       const backend = wrapZenFSFileSystem(fs as any);
@@ -291,18 +292,26 @@ export function getRegisteredBackendMetadata(): BackendMetadata[] {
  * 通过 getRevision 钩子实现零下载重校验。
  */
 export async function initConfigRepo(): Promise<IConfigRepo> {
+  console.log('[ConfigRepo] 调用 initConfigRepo()');
   // 注册所有后端类型（幂等）
   registerGiteeBackend();
   registerWebDAVBackend();
   registerRemoteStorageBackend();
 
   // 已初始化，直接返回
-  if (repoInstance) return repoInstance;
+  if (repoInstance) {
+    console.log('[ConfigRepo] 已初始化，返回现有实例');
+    return repoInstance;
+  }
 
   // 正在初始化，返回同一个 Promise（防止并发）
-  if (initPromise) return initPromise;
+  if (initPromise) {
+    console.log('[ConfigRepo] 正在初始化，等待完成');
+    return initPromise;
+  }
 
   initPromise = (async () => {
+    console.log('[ConfigRepo] 调用 createConfigRepo()');
     const repo = await createConfigRepo(APP_ID, {
       idbStoreName: 'retire-config',
       // 缓存配置：默认启用 IdbCacheStore（IndexedDB 持久化）

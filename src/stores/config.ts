@@ -89,6 +89,7 @@ export const useConfigStore = defineStore('config', () => {
    * 包含一次性迁移逻辑：如果 zen-fs-config 中没有配置，从旧 IndexedDB 读取
    */
   async function loadAll() {
+    console.log('[ConfigStore] 调用 loadAll()');
     const repo = getRepo();
 
     // 同步读取（从内存缓存，不存在时返回 undefined）
@@ -97,6 +98,7 @@ export const useConfigStore = defineStore('config', () => {
     let health = safeGetConfig<HealthProfile['data']>(PATHS.health);
     let sync = safeGetConfig<GiteeSyncConfig['data']>(PATHS.sync);
     let dataSync = safeGetConfig<DataSyncConfig>(PATHS.dataSync);
+    console.log('[ConfigStore] getConfig() 读取完成, user:', !!user, 'pension:', !!pension, 'health:', !!health, 'sync:', !!sync, 'dataSync:', !!dataSync);
 
     // ============ 一次性迁移：从旧 IndexedDB 读取 ============
     let migrated = false;
@@ -371,10 +373,12 @@ export const useConfigStore = defineStore('config', () => {
    * 刷新后端列表
    */
   async function refreshBackends() {
+    console.log('[ConfigStore] 调用 refreshBackends() -> repo.getBackends()');
     const repo = getRepo();
     try {
       const result = await repo.getBackends();
       backends.value = extractBackends(result as any);
+      console.log('[ConfigStore] getBackends() 完成, backends:', backends.value.length);
     } catch {
       backends.value = [];
     }
@@ -384,6 +388,7 @@ export const useConfigStore = defineStore('config', () => {
    * 手动触发同步
    */
   async function flush() {
+    console.log('[ConfigStore] 调用 flush()');
     const repo = getRepo();
     return await repo.flush();
   }

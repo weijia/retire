@@ -7,6 +7,25 @@ import path from 'path'
 import { execSync } from 'child_process'
 const commitSha = execSync('git rev-parse --short HEAD').toString().trim()
 
+// 读取 package.json 获取 ZenFS 版本信息
+import { readFileSync } from 'fs'
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+const zenfsVersions: Record<string, string> = {}
+for (const name of [
+  '@zenfs/core',
+  '@zenfs/dom',
+  'zen-fs-config',
+  'zen-fs-gitee',
+  'zen-fs-remotestoragejs',
+  'zen-fs-sync',
+  'zen-fs-cache',
+  'zen-fs-webdav',
+]) {
+  if (pkg.dependencies?.[name]) {
+    zenfsVersions[name] = pkg.dependencies[name].replace(/^[\^~]/, '')
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -59,6 +78,7 @@ export default defineConfig({
     '__APP_BUILD_TIME__': JSON.stringify(new Date().toISOString()),
     '__APP_VERSION__': JSON.stringify(process.env.npm_package_version || 'dev'),
     '__APP_COMMIT_SHA__': JSON.stringify(commitSha),
+    '__ZENFS_VERSIONS__': JSON.stringify(zenfsVersions),
   },
 
   build: {

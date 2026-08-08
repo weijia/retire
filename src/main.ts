@@ -8,6 +8,21 @@ import { initConfigRepo } from './config/configRepo';
 import { useConfigStore } from './stores/config';
 import { useDataSyncStore } from './stores/dataSyncStore';
 
+/**
+ * 打印 ZenFS 相关库的版本信息
+ */
+function printZenFSVersions(): void {
+  const versions = __ZENFS_VERSIONS__;
+  console.group('[ZenFS] 版本信息');
+  for (const [name, version] of Object.entries(versions)) {
+    console.log(`  ${name}: ${version}`);
+  }
+  console.groupEnd();
+}
+
+// 启动时打印版本信息
+printZenFSVersions();
+
 const app = createApp(App);
 const pinia = createPinia();
 
