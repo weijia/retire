@@ -266,8 +266,82 @@ export function registerRemoteStorageBackend(): void {
         token: options.token as string,
         basePath: options.basePath as string,
       });
-      // RemoteStorageFileSystem 已实现 BackendInstance 接口，直接返回
-      return fs as BackendInstance;
+
+      const backend = fs as any;
+
+      // 包装 stat：在调用 getRevision 之前检查路径是否为目录
+      // RemoteStorage 中目录没有独立资源，HEAD 请求会返回 404
+      const originalStat = backend.stat?.bind(backend);
+      if (originalStat) {
+        backend.stat = async (path: string) => {
+          // 判断是否为目录路径：
+          // - 以 / 结尾
+          // - 没有文件扩展名
+          // - .meta/ 下的路径（元数据目录）
+          const looksLikeDir =
+            path.endsWith('/') ||
+            (!path.split('/').pop()?.includes('.') && path !== '/') ||
+            path.includes('/.meta/');
+
+          console.log(`[RemoteStorage] stat("${path}") — looksLikeDir: ${looksLikeDir}`);
+
+          if (looksLikeDir) {
+            // 目录路径直接返回目录 stat，不发 HEAD 请求
+            console.log(`[RemoteStorage] 跳过 getRevision（目录路径），返回目录 stat`);
+            return {
+              isFile: () => false,
+              isDirectory: () => true,
+              size: 0,
+              mtime: new Date(0),
+            };
+          }
+
+          // 文件路径：调用原始 stat（内部会调用 getRevision）
+          try {
+            const result = await originalStat(path);
+            console.log(`[RemoteStorage] stat("${path}") 成功:`, result);
+            return result;
+          } catch (err) {
+            console.warn(`[RemoteStorage] stat("${path}") 失败:`, err);
+            // stat 失败时返回"不存在"的 stat，避免同步中断
+            return {
+              isFile: () => false,
+              isDirectory: () => false,
+              size: 0,
+              mtime: new Date(0),
+            };
+          }
+        };
+      }
+
+      // 包装 getRevision：添加调试打印，目录路径直接返回 null
+      const originalGetRevision = backend.getRevision?.bind(backend);
+      if (originalGetRevision) {
+        backend.getRevision = async (path: string) => {
+          const looksLikeDir =
+            path.endsWith('/') ||
+            (!path.split('/').pop()?.includes('.') && path !== '/') ||
+            path.includes('/.meta/');
+
+          if (looksLikeDir) {
+            console.log(`[RemoteStorage] getRevision("${path}") — 跳过（目录路径）`);
+            return null;
+          }
+
+          console.log(`[RemoteStorage] getRevision("${path}") — 调用原始方法`);
+          try {
+            const rev = await originalGetRevision(path);
+            console.log(`[RemoteStorage] getRevision("${path}") => "${rev}"`);
+            return rev;
+          } catch (err) {
+            console.warn(`[RemoteStorage] getRevision("${path}") 失败:`, err);
+            return null;
+          }
+        };
+      }
+
+      console.log('[RemoteStorage] 后端已创建，stat/getRevision 已包装（含目录检查 + 调试打印）');
+      return backend as BackendInstance;
     },
     rsMetadata,
   );
