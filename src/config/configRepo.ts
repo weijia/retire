@@ -67,32 +67,7 @@ export function registerGiteeBackend(): void {
       console.log('[Retire] 调用 registerBackend("Gitee", ...)');
       const { Gitee } = await import('zen-fs-gitee');
       const fs = await Gitee.create(options as any);
-      const backend = wrapZenFSFileSystem(fs as any);
-
-      // shouldSync：通过 tree SHA 检测远端变更
-      const { owner, repo, branch = 'master', token, baseUrl = 'https://gitee.com/api/v5' } = options as any;
-      const cacheKey = `zen-fs-gitee-sync:${owner}/${repo}/${branch}`;
-      (backend as any).shouldSync = async (): Promise<boolean> => {
-        try {
-          const base = baseUrl.replace(/\/$/, '');
-          const headers: Record<string, string> = {};
-          if (token) headers['Authorization'] = `token ${token}`;
-          const branchRes = await fetch(`${base}/repos/${owner}/${repo}/branches/${branch}`, { headers });
-          if (!branchRes.ok) return true;
-          const commitSha = (await branchRes.json())?.commit?.sha;
-          if (!commitSha) return true;
-          const commitRes = await fetch(`${base}/repos/${owner}/${repo}/git/commits/${commitSha}`, { headers });
-          if (!commitRes.ok) return true;
-          const treeSha = (await commitRes.json())?.tree?.sha;
-          if (!treeSha) return true;
-          const cached = localStorage.getItem(cacheKey);
-          if (cached === treeSha) return false;
-          localStorage.setItem(cacheKey, treeSha);
-          return true;
-        } catch { return true; }
-      };
-
-      return backend;
+      return wrapZenFSFileSystem(fs as any);
     },
     giteeMetadata,
   );
@@ -266,60 +241,7 @@ export function registerRemoteStorageBackend(): void {
         token: options.token as string,
         basePath: options.basePath as string,
       });
-
-      const backend = fs as any;
-
-      // 包装 stat：目录路径直接返回目录 stat，避免对不存在的资源发 HEAD 请求
-      const originalStat = backend.stat?.bind(backend);
-      if (originalStat) {
-        backend.stat = async (path: string) => {
-          const looksLikeDir =
-            path.endsWith('/') ||
-            (!path.split('/').pop()?.includes('.') && path !== '/') ||
-            path.includes('/.meta/');
-
-          if (looksLikeDir) {
-            return {
-              isFile: () => false,
-              isDirectory: () => true,
-              size: 0,
-              mtime: new Date(0),
-            };
-          }
-
-          try {
-            return await originalStat(path);
-          } catch {
-            return {
-              isFile: () => false,
-              isDirectory: () => false,
-              size: 0,
-              mtime: new Date(0),
-            };
-          }
-        };
-      }
-
-      // 包装 getRevision：目录路径直接返回 null
-      const originalGetRevision = backend.getRevision?.bind(backend);
-      if (originalGetRevision) {
-        backend.getRevision = async (path: string) => {
-          const looksLikeDir =
-            path.endsWith('/') ||
-            (!path.split('/').pop()?.includes('.') && path !== '/') ||
-            path.includes('/.meta/');
-
-          if (looksLikeDir) return null;
-
-          try {
-            return await originalGetRevision(path);
-          } catch {
-            return null;
-          }
-        };
-      }
-
-      return backend as BackendInstance;
+      return wrapZenFSFileSystem(fs as any);
     },
     rsMetadata,
   );
