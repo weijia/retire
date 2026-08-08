@@ -24,6 +24,8 @@ import type {
 } from '../types';
 import type { DataSyncConfig } from '../utils/dataSync';
 import { getDoc } from '../db';
+import { createLogger } from '@richard432/localstorage-logger';
+const log = createLogger('retire:config-store');
 
 // 配置路径常量（zen-fs-config 自动加 .json 后缀）
 const PATHS = {
@@ -89,7 +91,7 @@ export const useConfigStore = defineStore('config', () => {
    * 包含一次性迁移逻辑：如果 zen-fs-config 中没有配置，从旧 IndexedDB 读取
    */
   async function loadAll() {
-    console.log('[Retire] 调用 loadAll()');
+    log.log('调用 loadAll()');
     const repo = getRepo();
 
     // 同步读取（从内存缓存，不存在时返回 undefined）
@@ -98,7 +100,7 @@ export const useConfigStore = defineStore('config', () => {
     let health = safeGetConfig<HealthProfile['data']>(PATHS.health);
     let sync = safeGetConfig<GiteeSyncConfig['data']>(PATHS.sync);
     let dataSync = safeGetConfig<DataSyncConfig>(PATHS.dataSync);
-    console.log('[Retire] getConfig() 读取完成, user:', !!user, 'pension:', !!pension, 'health:', !!health, 'sync:', !!sync, 'dataSync:', !!dataSync);
+    log.log('getConfig() 读取完成, user:', !!user, 'pension:', !!pension, 'health:', !!health, 'sync:', !!sync, 'dataSync:', !!dataSync);
 
     // ============ 一次性迁移：从旧 IndexedDB 读取 ============
     let migrated = false;
@@ -175,7 +177,7 @@ export const useConfigStore = defineStore('config', () => {
     }
 
     if (migrated) {
-      console.log('[Retire] 已从旧存储迁移配置到 zen-fs-config');
+      log.log('已从旧存储迁移配置到 zen-fs-config');
       // 触发同步到已连接的副本后端
       try { await repo.flush(); } catch { /* 忽略同步错误 */ }
     }
@@ -207,9 +209,9 @@ export const useConfigStore = defineStore('config', () => {
             branch: s.branch || 'master',
           }, 'Gitee 配置同步');
           await refreshBackends();
-          console.log('[Retire] 已自动连接 Gitee 后端');
+          log.log('已自动连接 Gitee 后端');
         } catch (err) {
-          console.warn('[Retire] 自动连接 Gitee 后端失败:', err);
+          log.warn('自动连接 Gitee 后端失败:', err);
         }
       }
     }
@@ -218,7 +220,7 @@ export const useConfigStore = defineStore('config', () => {
     backendMetadata.value = getRegisteredBackendMetadata();
 
     loaded.value = true;
-    console.log('[Retire] 配置加载完成');
+    log.log('配置加载完成');
   }
 
   // ============ 用户配置 ============
@@ -331,7 +333,7 @@ export const useConfigStore = defineStore('config', () => {
       throw new Error(`后端 "${id}" 不存在`);
     }
     repo.syncEngine?.unwatch(replica.pairId);
-    console.log(`[Retire] 后端 ${id} 同步已暂停`);
+    log.log(`后端 ${id} 同步已暂停`);
   }
 
   /**
@@ -344,7 +346,7 @@ export const useConfigStore = defineStore('config', () => {
       throw new Error(`后端 "${id}" 不存在`);
     }
     repo.syncEngine?.watch(replica.pairId);
-    console.log(`[Retire] 后端 ${id} 同步已恢复`);
+    log.log(`后端 ${id} 同步已恢复`);
   }
 
   /**
@@ -373,12 +375,12 @@ export const useConfigStore = defineStore('config', () => {
    * 刷新后端列表
    */
   async function refreshBackends() {
-    console.log('[Retire] 调用 refreshBackends() -> repo.getBackends()');
+    log.log('调用 refreshBackends() -> repo.getBackends()');
     const repo = getRepo();
     try {
       const result = await repo.getBackends();
       backends.value = extractBackends(result as any);
-      console.log('[Retire] getBackends() 完成, backends:', backends.value.length);
+      log.log('getBackends() 完成, backends:', backends.value.length);
     } catch {
       backends.value = [];
     }
@@ -388,7 +390,7 @@ export const useConfigStore = defineStore('config', () => {
    * 手动触发同步
    */
   async function flush() {
-    console.log('[Retire] 调用 flush()');
+    log.log('调用 flush()');
     const repo = getRepo();
     return await repo.flush();
   }

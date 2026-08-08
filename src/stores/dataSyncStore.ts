@@ -23,6 +23,8 @@ import {
   loadPlans,
   savePlans,
 } from '../config/dataSync';
+import { createLogger } from '@richard432/localstorage-logger';
+const log = createLogger('retire:data-sync-store');
 
 export const useDataSyncStore = defineStore('dataSync', () => {
   // ============ State ============
@@ -39,9 +41,9 @@ export const useDataSyncStore = defineStore('dataSync', () => {
       await initDataSync();
       await refresh();
       initialized.value = true;
-      console.log('[DataSyncStore] 初始化完成');
+      log.log('初始化完成');
     } catch (err) {
-      console.error('[DataSyncStore] 初始化失败:', err);
+      log.error('初始化失败:', err);
     }
   }
 
@@ -51,7 +53,7 @@ export const useDataSyncStore = defineStore('dataSync', () => {
       accountBackends.value = await listAccountBackends();
       dataBackends.value = listDataBackends();
     } catch (err) {
-      console.error('[DataSyncStore] 刷新状态失败:', err);
+      log.error('刷新状态失败:', err);
     }
   }
 

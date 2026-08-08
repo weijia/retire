@@ -1,5 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import type { Component } from 'vue';
+import { createLogger } from '@richard432/localstorage-logger';
+const log = createLogger('retire:router');
 
 /**
  * 带缓存失效处理的懒加载
@@ -8,7 +10,7 @@ import type { Component } from 'vue';
  */
 function lazyLoad(view: () => Promise<{ default: Component }>) {
   return () => view().catch(async (error: Error) => {
-    console.warn('[Router] 动态导入失败:', error.message);
+    log.warn('动态导入失败:', error.message);
     // 尝试清除 Service Worker 缓存并重载
     if ('serviceWorker' in navigator) {
       const registrations = await navigator.serviceWorker.getRegistrations();

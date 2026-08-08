@@ -1,4 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
+import { createLogger } from '@richard432/localstorage-logger';
+const log = createLogger('retire:db');
 
 const DB_NAME = 'retire_db';
 const DB_VERSION = 3;
@@ -41,10 +43,10 @@ async function getDb(): Promise<IDBPDatabase> {
         // v2 -> v3: 数据库已修复，无需结构变更
       },
       blocked() {
-        console.warn('IndexedDB 升级被阻止，请关闭其他标签页后刷新');
+        log.warn('IndexedDB 升级被阻止，请关闭其他标签页后刷新');
       },
       blocking() {
-        console.warn('IndexedDB 升级阻塞中...');
+        log.warn('IndexedDB 升级阻塞中...');
       },
     });
     return dbInstance;

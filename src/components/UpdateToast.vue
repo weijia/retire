@@ -12,6 +12,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { createLogger } from '@richard432/localstorage-logger'
+
+const log = createLogger('retire:pwa')
 
 const show = ref(false)
 let updateAvailable = false // 去重标志，确保只通知一次
@@ -29,7 +32,7 @@ onMounted(() => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
           if (!updateAvailable) {
             updateAvailable = true
-            console.log('[PWA] 新版本可用')
+            log.log('新版本可用')
             show.value = true
           }
         }
@@ -41,12 +44,12 @@ onMounted(() => {
   navigator.serviceWorker.ready.then((reg) => {
     handleUpdate(reg)
     // 3 秒后检查更新
-    setTimeout(() => reg.update().catch(console.error), 3000)
+    setTimeout(() => reg.update().catch(e => log.error('SW update 失败:', e)), 3000)
   })
 
   // 每 5 分钟轮询
   const interval = setInterval(() => {
-    navigator.serviceWorker.ready.then((reg) => reg.update().catch(console.error))
+    navigator.serviceWorker.ready.then((reg) => reg.update().catch(e => log.error('SW update 失败:', e)))
   }, 5 * 60 * 1000)
 
   return () => clearInterval(interval)

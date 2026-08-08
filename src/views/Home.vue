@@ -228,6 +228,9 @@ import ProgressRing from '../components/ProgressRing.vue';
 import ExpenseItem from '../components/ExpenseItem.vue';
 import LifeExpectancyCard from '../components/LifeExpectancyCard.vue';
 import PensionCard from '../components/PensionCard.vue';
+import { createLogger } from '@richard432/localstorage-logger';
+
+const log = createLogger('retire:home');
 
 const userStore = useUserStore();
 const assetsStore = useAssetsStore();
@@ -295,36 +298,36 @@ const nonSalaryAssets = computed(() => {
 const getAnnualIncome = () => {
   const salaryAccount = assetsStore.getActiveSalaryAccount();
   if (!salaryAccount) {
-    console.log('[debug] no salary account');
+    log.log('no salary account');
     return 0;
   }
 
   const desc = salaryAccount.data.description || '';
-  console.log('[debug] salary account:', { name: salaryAccount.data.name, desc, balance: salaryAccount.data.balance });
+  log.log('salary account:', { name: salaryAccount.data.name, desc, balance: salaryAccount.data.balance });
 
   // 从 description 解析收入类型和金额
   // 格式："月收入: 15000" 或 "年收入: 180000"
   const monthlyMatch = desc.match(/月收入:\s*(\d+)/);
   if (monthlyMatch) {
-    console.log('[debug] monthly match:', monthlyMatch[1]);
+    log.log('monthly match:', monthlyMatch[1]);
     return parseInt(monthlyMatch[1]) * 12;
   }
 
   const yearlyMatch = desc.match(/年收入:\s*(\d+)/);
   if (yearlyMatch) {
-    console.log('[debug] yearly match:', yearlyMatch[1]);
+    log.log('yearly match:', yearlyMatch[1]);
     return parseInt(yearlyMatch[1]);
   }
 
   // 兼容旧数据：从 name 解析月收入，格式："工资收入 (15000/月 x 120月)"
   const nameMatch = salaryAccount.data.name.match(/(\d+)\/月/);
   if (nameMatch) {
-    console.log('[debug] name match:', nameMatch[1]);
+    log.log('name match:', nameMatch[1]);
     return parseInt(nameMatch[1]) * 12;
   }
 
   // 如果都无法解析，假设余额是月收入
-  console.log('[debug] fallback, balance*12:', salaryAccount.data.balance * 12);
+  log.log('fallback, balance*12:', salaryAccount.data.balance * 12);
   return salaryAccount.data.balance * 12;
 };
 

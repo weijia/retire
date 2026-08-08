@@ -19,6 +19,9 @@ import {
   listBackendMetadata,
 } from 'zen-fs-config';
 
+import { createLogger } from '@richard432/localstorage-logger';
+const log = createLogger('retire:config');
+
 // 全局单例
 let repoInstance: IConfigRepo | null = null;
 let initPromise: Promise<IConfigRepo> | null = null;
@@ -64,7 +67,7 @@ export function registerGiteeBackend(): void {
   registerBackend(
     'Gitee',
     async (options) => {
-      console.log('[Retire] 调用 registerBackend("Gitee", ...)');
+      log.log('调用 registerBackend("Gitee", ...)');
       const { Gitee } = await import('zen-fs-gitee');
       const fs = await Gitee.create(options as any);
       return wrapZenFSFileSystem(fs as any);
@@ -72,7 +75,7 @@ export function registerGiteeBackend(): void {
     giteeMetadata,
   );
   giteeRegistered = true;
-  console.log('[Retire] Gitee 后端已注册');
+  log.log('Gitee 后端已注册');
 }
 
 /** 标记 WebDAV 后端是否已注册（防止重复注册） */
@@ -195,7 +198,7 @@ export function registerWebDAVBackend(): void {
     webdavMetadata,
   );
   webdavRegistered = true;
-  console.log('[Retire] WebDAV 后端已注册');
+  log.log('WebDAV 后端已注册');
 }
 
 /** 标记 RemoteStorage 后端是否已注册（防止重复注册） */
@@ -246,7 +249,7 @@ export function registerRemoteStorageBackend(): void {
     rsMetadata,
   );
   remoteStorageRegistered = true;
-  console.log('[Retire] RemoteStorage 后端已注册');
+  log.log('RemoteStorage 后端已注册');
 }
 
 /**
@@ -266,7 +269,7 @@ export function getRegisteredBackendMetadata(): BackendMetadata[] {
  * 通过 getRevision 钩子实现零下载重校验。
  */
 export async function initConfigRepo(): Promise<IConfigRepo> {
-  console.log('[Retire] 调用 initConfigRepo()');
+  log.log('调用 initConfigRepo()');
   // 注册所有后端类型（幂等）
   registerGiteeBackend();
   registerWebDAVBackend();
@@ -274,25 +277,25 @@ export async function initConfigRepo(): Promise<IConfigRepo> {
 
   // 已初始化，直接返回
   if (repoInstance) {
-    console.log('[Retire] 配置仓库已初始化，返回现有实例');
+    log.log('配置仓库已初始化，返回现有实例');
     return repoInstance;
   }
 
   // 正在初始化，返回同一个 Promise（防止并发）
   if (initPromise) {
-    console.log('[Retire] 配置仓库正在初始化，等待完成');
+    log.log('配置仓库正在初始化，等待完成');
     return initPromise;
   }
 
   initPromise = (async () => {
-    console.log('[Retire] 调用 createConfigRepo()');
+    log.log('调用 createConfigRepo()');
     const repo = await createConfigRepo(APP_ID, {
       idbStoreName: 'retire-config',
       // 缓存配置：默认启用 IdbCacheStore（IndexedDB 持久化）
       // cache: {}, // 使用默认配置
     });
     repoInstance = repo;
-    console.log('[Retire] 配置仓库初始化完成，appId:', APP_ID);
+    log.log('配置仓库初始化完成，appId:', APP_ID);
     return repo;
   })();
 
@@ -323,6 +326,6 @@ export async function disposeConfigRepo(): Promise<void> {
     await repoInstance.dispose();
     repoInstance = null;
     initPromise = null;
-    console.log('[Retire] 配置仓库已释放');
+    log.log('配置仓库已释放');
   }
 }
