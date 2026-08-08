@@ -64,7 +64,7 @@ export function registerGiteeBackend(): void {
   registerBackend(
     'Gitee',
     async (options) => {
-      console.log('[ConfigRepo] 调用 registerBackend("Gitee", ...)');
+      console.log('[Retire] 调用 registerBackend("Gitee", ...)');
       const { Gitee } = await import('zen-fs-gitee');
       const fs = await Gitee.create(options as any);
       const backend = wrapZenFSFileSystem(fs as any);
@@ -97,7 +97,7 @@ export function registerGiteeBackend(): void {
     giteeMetadata,
   );
   giteeRegistered = true;
-  console.log('[ConfigRepo] Gitee 后端已注册（含 UI 元数据 + shouldSync）');
+  console.log('[Retire] Gitee 后端已注册');
 }
 
 /** 标记 WebDAV 后端是否已注册（防止重复注册） */
@@ -220,7 +220,7 @@ export function registerWebDAVBackend(): void {
     webdavMetadata,
   );
   webdavRegistered = true;
-  console.log('[ConfigRepo] WebDAV 后端已注册（含 UI 元数据）');
+  console.log('[Retire] WebDAV 后端已注册');
 }
 
 /** 标记 RemoteStorage 后端是否已注册（防止重复注册） */
@@ -324,7 +324,7 @@ export function registerRemoteStorageBackend(): void {
     rsMetadata,
   );
   remoteStorageRegistered = true;
-  console.log('[ConfigRepo] RemoteStorage 后端已注册（含 UI 元数据 + 缓存持久化）');
+  console.log('[Retire] RemoteStorage 后端已注册');
 }
 
 /**
@@ -344,7 +344,7 @@ export function getRegisteredBackendMetadata(): BackendMetadata[] {
  * 通过 getRevision 钩子实现零下载重校验。
  */
 export async function initConfigRepo(): Promise<IConfigRepo> {
-  console.log('[ConfigRepo] 调用 initConfigRepo()');
+  console.log('[Retire] 调用 initConfigRepo()');
   // 注册所有后端类型（幂等）
   registerGiteeBackend();
   registerWebDAVBackend();
@@ -352,25 +352,25 @@ export async function initConfigRepo(): Promise<IConfigRepo> {
 
   // 已初始化，直接返回
   if (repoInstance) {
-    console.log('[ConfigRepo] 已初始化，返回现有实例');
+    console.log('[Retire] 配置仓库已初始化，返回现有实例');
     return repoInstance;
   }
 
   // 正在初始化，返回同一个 Promise（防止并发）
   if (initPromise) {
-    console.log('[ConfigRepo] 正在初始化，等待完成');
+    console.log('[Retire] 配置仓库正在初始化，等待完成');
     return initPromise;
   }
 
   initPromise = (async () => {
-    console.log('[ConfigRepo] 调用 createConfigRepo()');
+    console.log('[Retire] 调用 createConfigRepo()');
     const repo = await createConfigRepo(APP_ID, {
       idbStoreName: 'retire-config',
       // 缓存配置：默认启用 IdbCacheStore（IndexedDB 持久化）
       // cache: {}, // 使用默认配置
     });
     repoInstance = repo;
-    console.log('[ConfigRepo] 初始化完成，appId:', APP_ID);
+    console.log('[Retire] 配置仓库初始化完成，appId:', APP_ID);
     return repo;
   })();
 
@@ -388,7 +388,7 @@ export async function initConfigRepo(): Promise<IConfigRepo> {
  */
 export function getConfigRepo(): IConfigRepo {
   if (!repoInstance) {
-    throw new Error('[ConfigRepo] 未初始化，请先调用 initConfigRepo()');
+    throw new Error('[Retire] 配置仓库未初始化，请先调用 initConfigRepo()');
   }
   return repoInstance;
 }
@@ -401,6 +401,6 @@ export async function disposeConfigRepo(): Promise<void> {
     await repoInstance.dispose();
     repoInstance = null;
     initPromise = null;
-    console.log('[ConfigRepo] 已释放');
+    console.log('[Retire] 配置仓库已释放');
   }
 }

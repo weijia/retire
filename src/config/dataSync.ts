@@ -34,13 +34,13 @@ export async function initDataSync(): Promise<AppDataGroup> {
 
   if (existing) {
     dataGroupInstance = await repo.getAppDataGroup(DATA_GROUP_ID);
-    console.log('[DataSync] 恢复数据同步组，后端数:', dataGroupInstance.listBackends().length);
+    console.log('[Retire] 恢复数据同步组，后端数:', dataGroupInstance.listBackends().length);
     return dataGroupInstance;
   }
 
   // 2. 创建新的数据同步组（初始无后端）
   dataGroupInstance = await repo.createAppDataGroup(DATA_GROUP_ID, []);
-  console.log('[DataSync] 创建新数据同步组');
+  console.log('[Retire] 创建新数据同步组');
 
   return dataGroupInstance;
 }
@@ -50,7 +50,7 @@ export async function initDataSync(): Promise<AppDataGroup> {
  */
 export function getDataGroup(): AppDataGroup {
   if (!dataGroupInstance) {
-    throw new Error('[DataSync] 未初始化，请先调用 initDataSync()');
+    throw new Error('[Retire] 数据同步未初始化，请先调用 initDataSync()');
   }
   return dataGroupInstance;
 }
@@ -97,7 +97,7 @@ export async function addDataBackend(
   };
 
   await group.addBackend(backendId, backendType, mergedOptions);
-  console.log(`[DataSync] 添加数据后端: ${backendId} (${backendType})`);
+  console.log(`[Retire] 添加数据后端: ${backendId} (${backendType})`);
 }
 
 /**
@@ -106,7 +106,7 @@ export async function addDataBackend(
 export async function removeDataBackend(backendId: string): Promise<void> {
   const group = getDataGroup();
   await group.removeBackend(backendId);
-  console.log(`[DataSync] 移除数据后端: ${backendId}`);
+  console.log(`[Retire] 移除数据后端: ${backendId}`);
 }
 
 /**
@@ -131,7 +131,7 @@ export function getDataSyncStatuses() {
 export async function flushDataSync(): Promise<void> {
   const group = getDataGroup();
   await group.flush();
-  console.log('[DataSync] 同步完成');
+  console.log('[Retire] 数据同步完成');
 }
 
 // ============ 数据读写操作 ============
@@ -262,7 +262,7 @@ export async function disposeDataSync(): Promise<void> {
   if (dataGroupInstance) {
     await dataGroupInstance.dispose();
     dataGroupInstance = null;
-    console.log('[DataSync] 已释放');
+    console.log('[Retire] 数据同步已释放');
   }
 }
 
