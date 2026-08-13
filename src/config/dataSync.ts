@@ -5,7 +5,13 @@
  * 支持分类存储：消费记录、资产账户、养老金记录、健康记录、消费计划等。
  */
 import { getConfigRepo } from './configRepo';
-import type { AppDataGroup } from 'zen-fs-config';
+import {
+  mergeAccountFields,
+  getBackendMetadata,
+  getAccountFields,
+  type AppDataGroup,
+  type BackendParamDef,
+} from 'zen-fs-config';
 
 import { createLogger } from '@richard432/localstorage-logger';
 const log = createLogger('retire:data-sync');
@@ -93,14 +99,51 @@ export async function addDataBackend(
     throw new Error(`账号后端 ${accountBackendId} 不存在`);
   }
 
-  // 合并账号字段和存储位置字段
-  const mergedOptions = {
-    ...accountBackend.options, // token, owner 等
-    ...options,                 // repo, branch 等
-  };
+  // 使用 zen-fs-config 的 mergeAccountFields API 合并账号字段和存储位置字段
+  // 只复制 accountFields 中声明的字段，不覆盖 options 中已有的字段
+  const mergedOptions = mergeAccountFields(
+    backendType,
+    accountBackend.options,
+    options,
+  );
 
-  await group.addBackend(backendId, backendType, mergedOptions);
+  await group.addBackend(backendId, backendType, mergedOptions, _description);
   log.log(`添加数据后端: ${backendId} (${backendType})`);
+}
+
+/**
+ * 获取指定后端类型的存储位置字段定义
+ * 过滤掉 accountFields 中声明的账号字段，返回剩余的"存储位置字段"
+ * 用于 data-sync 后端添加表单的动态生成
+ * @param backendType 后端类型
+ * @returns 存储位置字段定义数组
+ */
+export function getStorageFields(backendType: string): BackendParamDef[] {
+  const meta = getBackendMetadata(backendType);
+  if (!meta) return [];
+
+  const accountFields = getAccountFields(backendType);
+  return meta.fields.filter(f => !accountFields.includes(f.key));
+}
+
+/**
+ * 获取指定后端类型的存储位置字段缺省值
+ * 从 defaultOptions 中过滤出存储位置字段的值
+ * @param backendType 后端类型
+ * @returns 存储位置字段的缺省值
+ */
+export function getStorageDefaults(backendType: string): Record<string, string> {
+  const meta = getBackendMetadata(backendType);
+  if (!meta) return {};
+
+  const accountFields = getAccountFields(backendType);
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(meta.defaultOptions)) {
+    if (!accountFields.includes(key)) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 /**

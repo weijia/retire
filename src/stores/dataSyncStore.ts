@@ -12,6 +12,8 @@ import {
   removeDataBackend,
   listDataBackends,
   flushDataSync,
+  getStorageFields,
+  getStorageDefaults,
   loadExpenseRecords,
   saveExpenseRecords,
   loadAssets,
@@ -23,6 +25,7 @@ import {
   loadPlans,
   savePlans,
 } from '../config/dataSync';
+import type { BackendParamDef } from 'zen-fs-config';
 import { createLogger } from '@richard432/localstorage-logger';
 const log = createLogger('retire:data-sync-store');
 
@@ -119,6 +122,22 @@ export const useDataSyncStore = defineStore('dataSync', () => {
     await flush();
   }
 
+  // ============ 存储位置字段辅助 ============
+  /**
+   * 获取指定后端类型的存储位置字段定义
+   * 用于 data-sync 后端添加表单的动态生成（过滤掉账号字段）
+   */
+  function getStorageFieldDefs(backendType: string): BackendParamDef[] {
+    return getStorageFields(backendType);
+  }
+
+  /**
+   * 获取指定后端类型的存储位置字段缺省值
+   */
+  function getStorageDefaultValues(backendType: string): Record<string, string> {
+    return getStorageDefaults(backendType);
+  }
+
   return {
     // State
     initialized,
@@ -131,6 +150,9 @@ export const useDataSyncStore = defineStore('dataSync', () => {
     addBackend,
     removeBackend,
     flush,
+    // Storage field helpers
+    getStorageFieldDefs,
+    getStorageDefaultValues,
     // Data operations
     loadData,
     saveAllData,
