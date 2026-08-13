@@ -20,7 +20,7 @@
     "vue-router": "^4.6.4",
     "zen-fs-cache": "^1.0.5",
     "zen-fs-config": "^0.5.18",
-    "zen-fs-gitee": "^1.2.8",
+    "zen-fs-gitee": "github:weijia/zen-fs-gitee#777b95c",
     "zen-fs-remotestoragejs": "^1.2.36",
     "zen-fs-sync": "^0.4.8",
     "zen-fs-webdav": "^0.1.2"
