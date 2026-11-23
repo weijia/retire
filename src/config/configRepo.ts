@@ -10,7 +10,6 @@
  * - 缓存数据持久化到 IndexedDB
  */
 import {
-  createConfigRepo,
   registerBackend,
   wrapZenFSFileSystem,
   type IConfigRepo,
@@ -20,11 +19,8 @@ import {
 } from 'zen-fs-config';
 
 import { createLogger } from '@richard432/localstorage-logger';
+import { getConfigRepo as getSharedRepo } from './repoBoard';
 const log = createLogger('retire:config');
-
-// 全局单例
-let repoInstance: IConfigRepo | null = null;
-let initPromise: Promise<IConfigRepo> | null = null;
 
 const APP_ID = 'retire';
 
@@ -261,71 +257,34 @@ export function getRegisteredBackendMetadata(): BackendMetadata[] {
 }
 
 /**
- * 初始化配置仓库
- * 零参数初始化 — 仅使用 IndexedDB 本地主后端（offline-first）
- * 重新打开只需 appId，IndexedDB + .meta/backends/ 自动恢复所有状态
+ * 注册所有后端类型（必须在 UI configurator connect 之前调用）。
  *
- * 缓存层默认开启：远程副本后端自动被 CachedFileSystem 包装，
- * 通过 getRevision 钩子实现零下载重校验。
+ * UI 使用的是 zen-fs-config 的 connect()，后端类型来自全局注册表，
+ * 因此这里用 registerBackend 注册的 Gitee / WebDAV / RemoteStorage
+ * 会被 UI 的表单与连接逻辑直接复用 —— 与 retire 共享同一个 npm 实例。
  */
-export async function initConfigRepo(): Promise<IConfigRepo> {
-  log.log('调用 initConfigRepo()');
-  // 注册所有后端类型（幂等）
+export function registerAllBackends(): void {
   registerGiteeBackend();
   registerWebDAVBackend();
   registerRemoteStorageBackend();
-
-  // 已初始化，直接返回
-  if (repoInstance) {
-    log.log('配置仓库已初始化，返回现有实例');
-    return repoInstance;
-  }
-
-  // 正在初始化，返回同一个 Promise（防止并发）
-  if (initPromise) {
-    log.log('配置仓库正在初始化，等待完成');
-    return initPromise;
-  }
-
-  initPromise = (async () => {
-    log.log('调用 createConfigRepo()');
-    const repo = await createConfigRepo(APP_ID, {
-      idbStoreName: 'retire-config',
-      // 缓存配置：默认启用 IdbCacheStore（IndexedDB 持久化）
-      // cache: {}, // 使用默认配置
-    });
-    repoInstance = repo;
-    log.log('配置仓库初始化完成，appId:', APP_ID);
-    return repo;
-  })();
-
-  try {
-    return await initPromise;
-  } catch (err) {
-    // 初始化失败，清理状态以便重试
-    initPromise = null;
-    throw err;
-  }
+  log.log('所有后端类型已注册（appId:', APP_ID, '）');
 }
 
 /**
- * 获取配置仓库实例（必须先调用 initConfigRepo）
+ * 获取配置仓库实例。
+ *
+ * 新架构下 repo 由 App.vue 常驻的 <sync-group-configurator> 建立并发布到
+ * repoBoard，这里只做转发；未 connect 前调用会抛错。
  */
 export function getConfigRepo(): IConfigRepo {
-  if (!repoInstance) {
-    throw new Error('[Retire] 配置仓库未初始化，请先调用 initConfigRepo()');
-  }
-  return repoInstance;
+  return getSharedRepo();
 }
 
-/**
- * 释放配置仓库资源
- */
-export async function disposeConfigRepo(): Promise<void> {
-  if (repoInstance) {
-    await repoInstance.dispose();
-    repoInstance = null;
-    initPromise = null;
-    log.log('配置仓库已释放');
+/** 兼容旧调用点：仓库已就绪时返回实例，否则返回 null */
+export function tryGetConfigRepo(): IConfigRepo | null {
+  try {
+    return getSharedRepo();
+  } catch {
+    return null;
   }
 }

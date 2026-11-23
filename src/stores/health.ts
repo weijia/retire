@@ -79,7 +79,7 @@ export const useHealthStore = defineStore('health', () => {
   async function saveProfile(data: HealthProfile['data']) {
     const configStore = useConfigStore();
     const plainData = JSON.parse(JSON.stringify(data));
-    configStore.setHealthProfile(plainData);
+    await configStore.setHealthProfile(plainData);
     profile.value = {
       _id: PROFILE_DOC_ID,
       type: 'health_profile',

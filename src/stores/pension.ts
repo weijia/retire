@@ -90,7 +90,7 @@ export const usePensionStore = defineStore('pension', () => {
   async function saveConfig(data: PensionConfig['data']) {
     const configStore = useConfigStore();
     const plainData = JSON.parse(JSON.stringify(data));
-    configStore.setPensionConfig(plainData);
+    await configStore.setPensionConfig(plainData);
     config.value = {
       _id: CONFIG_DOC_ID,
       type: 'pension_config',

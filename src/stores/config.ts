@@ -1,20 +1,26 @@
 /**
  * 配置管理 Store
  *
- * 使用 zen-fs-config 管理 4 种应用配置：
- * - /user     → 用户配置（出生年份、退休年龄等）
- * - /pension  → 养老金测算配置
- * - /health   → 健康画像
- * - /sync     → 同步设置（替代 gitee_sync_config）
+ * 【新架构】用户的业务配置（user / pension / health / sync / data-sync）
+ * 不再存 Config Repo 的 repo.setConfig()，而是集中存到独立的数据同步组
+ * 'retire-settings' 的 /config.json（见 config/settingsGroup.ts）。
+ * 这样配置与业务数据一样，由 zen-fs-config-ui 的 data-sync 组统一同步。
  *
- * 所有配置通过 ConfigRepo 读写，IndexedDB 为主后端，
- * 添加 Gitee 等副本后端后自动双向同步。
+ * Config Repo 本身仍有价值：保存后端拓扑（.meta/backends）与数据组登记，
+ * 且由 App.vue 常驻的 <sync-group-configurator> 建立唯一 repo 并发布到 repoBoard。
  *
- * 业务数据（资产、消费记录、养老金缴存记录等）仍存储在原有 IndexedDB 中。
+ * 业务数据（资产、消费记录、养老金缴存记录等）仍存储在 retire-data 数据组。
  */
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { getConfigRepo, getRegisteredBackendMetadata } from '../config/configRepo';
+import { tryGetConfigRepo } from '../config/configRepo';
+import {
+  initSettingsGroup,
+  readSettingsDocument,
+  writeSetting,
+  type SettingsDocument,
+} from '../config/settingsGroup';
 import type { IConfigRepo, BackendMetadata } from 'zen-fs-config';
 import type {
   UserConfig,
@@ -27,16 +33,16 @@ import { getDoc } from '../db';
 import { createLogger } from '@richard432/localstorage-logger';
 const log = createLogger('retire:config-store');
 
-// 配置路径常量（zen-fs-config 自动加 .json 后缀）
-const PATHS = {
-  user: '/user',
-  pension: '/pension',
-  health: '/health',
-  sync: '/sync',
-  dataSync: '/data-sync',
+/** 配置项在 /config.json 中的键 */
+const KEYS = {
+  user: 'user',
+  pension: 'pension',
+  health: 'health',
+  sync: 'sync',
+  dataSync: 'dataSync',
 } as const;
 
-// 旧 IndexedDB 中的文档 ID（用于一次性迁移）
+// 旧 IndexedDB 中的文档 ID（用于兜底迁移）
 const OLD_DOC_IDS = {
   user: 'user_config_profile',
   pension: 'pension_config_main',
@@ -60,102 +66,81 @@ export const useConfigStore = defineStore('config', () => {
     return getConfigRepo();
   }
 
-  /**
-   * 从后端拓扑中提取可展示的后端列表
-   */
   function extractBackends(result: { backends: Array<{ id: string; type: string; description?: string }> } | null) {
     if (!result || !result.backends) return [];
     return result.backends
-      .filter(b => b.id !== 'local-idb') // 过滤掉本地主后端（用户不需要看到）
-      .map(b => ({
-        id: b.id,
-        type: b.type,
-        description: (b as any).description,
-      }));
+      .filter(b => b.id !== 'local-idb')
+      .map(b => ({ id: b.id, type: b.type, description: (b as any).description }));
   }
 
-  /**
-   * 安全读取配置：不存在时返回 undefined 而非抛异常
-   * zen-fs-config 的 getConfig() 在缓存中没有 key 时会抛异常
-   */
-  function safeGetConfig<T>(path: string): T | undefined {
+  /** 从老 config repo 读取（迁移窗口兜底）；不存在返回 undefined */
+  function safeGetLegacy<T>(path: string): T | undefined {
+    const repo = tryGetConfigRepo();
+    if (!repo) return undefined;
     try {
-      return getRepo().getConfig<T>(path);
+      return repo.getConfig<T>(path);
     } catch {
       return undefined;
     }
   }
 
   /**
-   * 从 zen-fs-config 加载全部配置到内存
-   * 包含一次性迁移逻辑：如果 zen-fs-config 中没有配置，从旧 IndexedDB 读取
+   * 加载全部配置到内存。
+   * 数据源优先级：数据组 /config.json > 老 config repo > 老 IndexedDB 文档。
    */
   async function loadAll() {
-    log.log('调用 loadAll()');
-    const repo = getRepo();
+    log.log('调用 loadAll()（数据源：settings 数据组）');
 
-    // 同步读取（从内存缓存，不存在时返回 undefined）
-    let user = safeGetConfig<UserConfig['data']>(PATHS.user);
-    let pension = safeGetConfig<PensionConfig['data']>(PATHS.pension);
-    let health = safeGetConfig<HealthProfile['data']>(PATHS.health);
-    let sync = safeGetConfig<GiteeSyncConfig['data']>(PATHS.sync);
-    let dataSync = safeGetConfig<DataSyncConfig>(PATHS.dataSync);
-    log.log('getConfig() 读取完成, user:', !!user, 'pension:', !!pension, 'health:', !!health, 'sync:', !!sync, 'dataSync:', !!dataSync);
+    // 1) 确保数据同步组存在（repo 必须已就绪）
+    await initSettingsGroup();
+    const doc: SettingsDocument = await readSettingsDocument();
 
-    // ============ 一次性迁移：从旧 IndexedDB 读取 ============
+    let user = doc[KEYS.user] as UserConfig['data'] | undefined;
+    let pension = doc[KEYS.pension] as PensionConfig['data'] | undefined;
+    let health = doc[KEYS.health] as HealthProfile['data'] | undefined;
+    let sync = doc[KEYS.sync] as GiteeSyncConfig['data'] | undefined;
+    let dataSync = doc[KEYS.dataSync] as DataSyncConfig | undefined;
+
+    // 2) 兜底：数据组缺项时尝试老 config repo（首次升级/迁移未完成）
+    if (!user) user = safeGetLegacy<UserConfig['data']>('/user');
+    if (!pension) pension = safeGetLegacy<PensionConfig['data']>('/pension');
+    if (!health) health = safeGetLegacy<HealthProfile['data']>('/health');
+    if (!sync) sync = safeGetLegacy<GiteeSyncConfig['data']>('/sync');
+    if (!dataSync) dataSync = safeGetLegacy<DataSyncConfig>('/data-sync');
+
+    // 3) 再兜底：老 IndexedDB 文档
     let migrated = false;
-
     if (!user) {
       try {
         const oldDoc = await getDoc(OLD_DOC_IDS.user) as UserConfig | undefined;
         if (oldDoc?.data) {
           const d = oldDoc.data as any;
-          // 兼容旧数据：补充新增字段的默认值
           if (d.actualRetireAge === undefined) d.actualRetireAge = 65;
           if (d.birthYear === undefined && d.birthDate) {
             d.birthYear = new Date(d.birthDate).getFullYear();
           }
-          repo.setConfig(PATHS.user, d);
-          user = d;
-          migrated = true;
+          user = d; migrated = true;
         }
-      } catch { /* 旧数据不存在或读取失败，忽略 */ }
+      } catch { /* ignore */ }
     }
-
     if (!pension) {
       try {
         const oldDoc = await getDoc(OLD_DOC_IDS.pension) as PensionConfig | undefined;
-        if (oldDoc?.data) {
-          repo.setConfig(PATHS.pension, oldDoc.data);
-          pension = oldDoc.data;
-          migrated = true;
-        }
-      } catch { /* 忽略 */ }
+        if (oldDoc?.data) { pension = oldDoc.data; migrated = true; }
+      } catch { /* ignore */ }
     }
-
     if (!health) {
       try {
         const oldDoc = await getDoc(OLD_DOC_IDS.health) as HealthProfile | undefined;
-        if (oldDoc?.data) {
-          repo.setConfig(PATHS.health, oldDoc.data);
-          health = oldDoc.data;
-          migrated = true;
-        }
-      } catch { /* 忽略 */ }
+        if (oldDoc?.data) { health = oldDoc.data; migrated = true; }
+      } catch { /* ignore */ }
     }
-
     if (!sync) {
       try {
         const oldDoc = await getDoc(OLD_DOC_IDS.sync) as GiteeSyncConfig | undefined;
-        if (oldDoc?.data) {
-          repo.setConfig(PATHS.sync, oldDoc.data);
-          sync = oldDoc.data;
-          migrated = true;
-        }
-      } catch { /* 忽略 */ }
+        if (oldDoc?.data) { sync = oldDoc.data; migrated = true; }
+      } catch { /* ignore */ }
     }
-
-    // 迁移旧 Gitee 业务数据备份配置到新的 dataSync 配置
     if (!dataSync && sync) {
       const s = sync as GiteeSyncConfig['data'];
       if (s.token && s.owner && s.repo) {
@@ -164,63 +149,42 @@ export const useConfigStore = defineStore('config', () => {
             id: 'gitee-data',
             type: 'Gitee',
             options: {
-              token: s.token,
-              owner: s.owner,
-              repo: s.repo,
-              branch: s.branch || 'master',
+              token: s.token, owner: s.owner, repo: s.repo, branch: s.branch || 'master',
             },
           }],
         };
-        repo.setConfig(PATHS.dataSync, dataSync);
         migrated = true;
       }
     }
 
-    if (migrated) {
-      log.log('已从旧存储迁移配置到 zen-fs-config');
-      // 触发同步到已连接的副本后端
-      try { await repo.flush(); } catch { /* 忽略同步错误 */ }
+    // 4) 把兜底得到的值一次性写回数据组（之后以数据组为准）
+    const toWrite: Partial<SettingsDocument> = {};
+    if (doc[KEYS.user] === undefined && user) toWrite[KEYS.user] = user;
+    if (doc[KEYS.pension] === undefined && pension) toWrite[KEYS.pension] = pension;
+    if (doc[KEYS.health] === undefined && health) toWrite[KEYS.health] = health;
+    if (doc[KEYS.sync] === undefined && sync) toWrite[KEYS.sync] = sync;
+    if (doc[KEYS.dataSync] === undefined && dataSync) toWrite[KEYS.dataSync] = dataSync;
+    for (const [key, value] of Object.entries(toWrite)) {
+      await writeSetting(key as keyof SettingsDocument, value);
     }
 
-    // 更新 state
     userConfig.value = user || null;
     pensionConfig.value = pension || null;
     healthProfile.value = health || null;
     syncConfig.value = sync || null;
     dataSyncConfig.value = dataSync || null;
 
-    // 加载后端拓扑
+    // 后端拓扑（来自 repo 的 .meta/backends，仍由 UI 管理）
     try {
-      const result = await repo.getBackends();
+      const result = await getRepo().getBackends();
       backends.value = extractBackends(result as any);
     } catch {
       backends.value = [];
     }
 
-    // 如果已有同步配置但尚未添加 Gitee 后端，自动连接
-    if (sync && backends.value.length === 0) {
-      const s = sync as GiteeSyncConfig['data'];
-      if (s.token && s.owner && s.repo) {
-        try {
-          await repo.addBackend('gitee', 'Gitee', {
-            token: s.token,
-            owner: s.owner,
-            repo: s.repo,
-            branch: s.branch || 'master',
-          }, 'Gitee 配置同步');
-          await refreshBackends();
-          log.log('已自动连接 Gitee 后端');
-        } catch (err) {
-          log.warn('自动连接 Gitee 后端失败:', err);
-        }
-      }
-    }
-
-    // 加载已注册后端的 UI 元数据（用于设置页面动态生成表单）
     backendMetadata.value = getRegisteredBackendMetadata();
-
     loaded.value = true;
-    log.log('配置加载完成');
+    log.log('配置加载完成（来源：数据组 + 兜底迁移=' + migrated + '）');
   }
 
   // ============ 用户配置 ============
@@ -228,10 +192,9 @@ export const useConfigStore = defineStore('config', () => {
     return userConfig.value;
   }
 
-  function setUserConfig(data: UserConfig['data']) {
-    const repo = getRepo();
+  async function setUserConfig(data: UserConfig['data']) {
     const plainData = JSON.parse(JSON.stringify(data));
-    repo.setConfig(PATHS.user, plainData);
+    await writeSetting(KEYS.user, plainData);
     userConfig.value = plainData;
   }
 
@@ -240,10 +203,9 @@ export const useConfigStore = defineStore('config', () => {
     return pensionConfig.value;
   }
 
-  function setPensionConfig(data: PensionConfig['data']) {
-    const repo = getRepo();
+  async function setPensionConfig(data: PensionConfig['data']) {
     const plainData = JSON.parse(JSON.stringify(data));
-    repo.setConfig(PATHS.pension, plainData);
+    await writeSetting(KEYS.pension, plainData);
     pensionConfig.value = plainData;
   }
 
@@ -252,194 +214,109 @@ export const useConfigStore = defineStore('config', () => {
     return healthProfile.value;
   }
 
-  function setHealthProfile(data: HealthProfile['data']) {
-    const repo = getRepo();
+  async function setHealthProfile(data: HealthProfile['data']) {
     const plainData = JSON.parse(JSON.stringify(data));
-    repo.setConfig(PATHS.health, plainData);
+    await writeSetting(KEYS.health, plainData);
     healthProfile.value = plainData;
   }
 
-  // ============ 同步配置 ============
+  // ============ 同步配置（历史兼容，仍写入数据组）============
   function getSyncConfig(): GiteeSyncConfig['data'] | null {
     return syncConfig.value;
   }
 
-  function setSyncConfig(data: GiteeSyncConfig['data']) {
-    const repo = getRepo();
+  async function setSyncConfig(data: GiteeSyncConfig['data']) {
     const plainData = JSON.parse(JSON.stringify(data));
-    repo.setConfig(PATHS.sync, plainData);
+    await writeSetting(KEYS.sync, plainData);
     syncConfig.value = plainData;
   }
 
-  // ============ 业务数据同步配置 ============
   function getDataSyncConfig(): DataSyncConfig | null {
     return dataSyncConfig.value;
   }
 
-  function setDataSyncConfig(data: DataSyncConfig) {
-    const repo = getRepo();
+  async function setDataSyncConfig(data: DataSyncConfig) {
     const plainData = JSON.parse(JSON.stringify(data));
-    repo.setConfig(PATHS.dataSync, plainData);
+    await writeSetting(KEYS.dataSync, plainData);
     dataSyncConfig.value = plainData;
   }
 
-  // ============ 后端管理 ============
-  /**
-   * 添加 Gitee 副本后端
-   * 添加后自动建立双向同步
-   */
+  // ============ 后端管理（UI 管理的兼容接口）============
   async function addGiteeBackend(
     id: string,
     options: { token: string; owner: string; repo: string; branch: string },
     description?: string
   ) {
-    const repo = getRepo();
-    await repo.addBackend(id, 'Gitee', options, description);
+    await getRepo().addBackend(id, 'Gitee', options, description);
     await refreshBackends();
   }
 
-  /**
-   * 添加任意类型的副本后端（通用方法）
-   * 根据后端元数据动态生成表单后调用此方法
-   */
-  async function addBackend(
-    id: string,
-    type: string,
-    options: Record<string, unknown>,
-    description?: string
-  ) {
-    const repo = getRepo();
-    await repo.addBackend(id, type, options, description);
+  async function addBackend(id: string, type: string, options: Record<string, unknown>, description?: string) {
+    await getRepo().addBackend(id, type, options, description);
     await refreshBackends();
   }
 
-  /**
-   * 移除副本后端
-   */
   async function removeBackend(id: string) {
-    const repo = getRepo();
-    await repo.removeBackend(id);
+    await getRepo().removeBackend(id);
     await refreshBackends();
   }
 
-  /**
-   * 暂停后端同步（不删除后端，仅停止自动 watch）
-   * 通过访问 ConfigRepo 内部的 syncEngine 实现
-   */
   function pauseBackend(id: string) {
     const repo = getRepo() as any;
     const replica = repo.replicaBackends?.get(id);
-    if (!replica) {
-      throw new Error(`后端 "${id}" 不存在`);
-    }
+    if (!replica) throw new Error(`后端 "${id}" 不存在`);
     repo.syncEngine?.unwatch(replica.pairId);
     log.log(`后端 ${id} 同步已暂停`);
   }
 
-  /**
-   * 恢复后端同步
-   */
   function resumeBackend(id: string) {
     const repo = getRepo() as any;
     const replica = repo.replicaBackends?.get(id);
-    if (!replica) {
-      throw new Error(`后端 "${id}" 不存在`);
-    }
+    if (!replica) throw new Error(`后端 "${id}" 不存在`);
     repo.syncEngine?.watch(replica.pairId);
     log.log(`后端 ${id} 同步已恢复`);
   }
 
-  /**
-   * 判断后端是否处于暂停状态
-   */
   function isBackendPaused(id: string): boolean {
     return getBackendSyncState(id) === 'paused';
   }
 
-  /**
-   * 获取后端的同步状态
-   * ConfigRepo 内部 replicaBackends Map 存储了 { pairId }，
-   * pairId 是随机生成的（如 sync-lxyz1234-1），不包含后端 ID，
-   * 因此必须通过 replicaBackends 查找 pairId，再查 syncStatuses
-   */
   function getBackendSyncState(id: string): string | undefined {
     const repo = getRepo() as any;
     const replica = repo.replicaBackends?.get(id);
     if (!replica) return undefined;
-    const statuses = repo.getSyncStatuses();
-    const status = statuses.get(replica.pairId);
+    const status = repo.getSyncStatuses().get(replica.pairId);
     return status?.state;
   }
 
-  /**
-   * 刷新后端列表
-   */
   async function refreshBackends() {
-    log.log('调用 refreshBackends() -> repo.getBackends()');
-    const repo = getRepo();
     try {
-      const result = await repo.getBackends();
+      const result = await getRepo().getBackends();
       backends.value = extractBackends(result as any);
-      log.log('getBackends() 完成, backends:', backends.value.length);
     } catch {
       backends.value = [];
     }
   }
 
-  /**
-   * 手动触发同步
-   */
   async function flush() {
-    log.log('调用 flush()');
-    const repo = getRepo();
-    return await repo.flush();
+    return await getRepo().flush();
   }
 
-  /**
-   * 获取同步状态
-   */
   function getSyncStatuses() {
-    const repo = getRepo();
-    return repo.getSyncStatuses();
+    return getRepo().getSyncStatuses();
   }
 
   return {
-    // state
-    userConfig,
-    pensionConfig,
-    healthProfile,
-    syncConfig,
-    dataSyncConfig,
-    loaded,
-    backends,
-    backendMetadata,
-    // load
+    userConfig, pensionConfig, healthProfile, syncConfig, dataSyncConfig,
+    loaded, backends, backendMetadata,
     loadAll,
-    // user
-    getUserConfig,
-    setUserConfig,
-    // pension
-    getPensionConfig,
-    setPensionConfig,
-    // health
-    getHealthProfile,
-    setHealthProfile,
-    // sync
-    getSyncConfig,
-    setSyncConfig,
-    // data sync
-    getDataSyncConfig,
-    setDataSyncConfig,
-    // backends
-    addGiteeBackend,
-    addBackend,
-    removeBackend,
-    pauseBackend,
-    resumeBackend,
-    isBackendPaused,
-    getBackendSyncState,
-    refreshBackends,
-    flush,
-    getSyncStatuses,
+    getUserConfig, setUserConfig,
+    getPensionConfig, setPensionConfig,
+    getHealthProfile, setHealthProfile,
+    getSyncConfig, setSyncConfig,
+    getDataSyncConfig, setDataSyncConfig,
+    addGiteeBackend, addBackend, removeBackend,
+    pauseBackend, resumeBackend, isBackendPaused, getBackendSyncState,
+    refreshBackends, flush, getSyncStatuses,
   };
 });

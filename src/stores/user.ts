@@ -38,7 +38,7 @@ export const useUserStore = defineStore('user', () => {
   async function saveConfig(data: UserConfig['data']) {
     const configStore = useConfigStore();
     const plainData = JSON.parse(JSON.stringify(data));
-    configStore.setUserConfig(plainData);
+    await configStore.setUserConfig(plainData);
     // 更新本地 state
     config.value = {
       _id: 'user_config_profile',

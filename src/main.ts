@@ -4,7 +4,9 @@ import router from './router';
 import App from './App.vue';
 import './styles/global.css';
 import { createIndexes } from './db/indexes';
-import { initConfigRepo } from './config/configRepo';
+import { registerAllBackends } from './config/configRepo';
+import { onRepo, getRepo } from './config/repoBoard';
+import { migrateLegacyOnce } from './config/legacyMigrate';
 import { useConfigStore } from './stores/config';
 import { useDataSyncStore } from './stores/dataSyncStore';
 import { createLogger } from '@richard432/localstorage-logger';
@@ -79,26 +81,46 @@ createIndexes().then(() => {
   log.error('数据库索引初始化失败:', err);
 });
 
-// 初始化配置仓库并加载配置，然后挂载应用
-initConfigRepo()
-  .then(() => {
+// ============ 启动流程 ============
+// 新架构：后端类型先注册；repo 由 App.vue 常驻的 <sync-group-configurator>
+// connect 建立并发布到 repoBoard。应用先挂载（UI 才能 connect），
+// 再在 repo 就绪后做一次性迁移 + 加载配置 + 初始化业务数据同步。
+
+// 1) 注册后端类型（必须在 UI connect 之前，让 UI 表单拿到元数据）
+registerAllBackends();
+
+// 应用立即挂载，configurator 在 App.vue 里随即 connect
+app.mount('#app');
+log.log('应用已挂载（等待同步组 connected）');
+
+let bootstrapped = false;
+
+/** repo 就绪后：一次性迁移 → 加载配置 → 初始化业务数据同步 */
+async function bootstrap(repo: NonNullable<ReturnType<typeof getRepo>>) {
+  if (bootstrapped) return;
+  bootstrapped = true;
+  try {
+    // 老库 → 新库，一次性（配置值 + 业务数据）
+    await migrateLegacyOnce(repo);
+
     const configStore = useConfigStore(pinia);
-    return configStore.loadAll();
-  })
-  .then(() => {
-    // 初始化数据同步
+    await configStore.loadAll();
+
     const dataSyncStore = useDataSyncStore(pinia);
-    return dataSyncStore.init();
-  })
-  .then(() => {
-    app.mount('#app');
-    log.log('应用已启动');
-  })
-  .catch(err => {
-    log.error('配置仓库初始化失败，降级启动:', err);
-    // 即使配置仓库初始化失败，也要挂载应用（降级模式）
-    app.mount('#app');
-  });
+    await dataSyncStore.init();
+
+    log.log('配置与数据同步初始化完成');
+  } catch (err) {
+    log.error('配置初始化失败（降级运行）:', err);
+  }
+}
+
+// 订阅 repo：connected 后立即 bootstrap；晚到的 repo 也会补触发
+onRepo((repo) => {
+  if (repo) void bootstrap(repo);
+});
+// 兜底：若 configurator 在订阅前已 connected，主动取一次
+if (getRepo()) void bootstrap(getRepo()!);
 
 // 注册 Service Worker（独立于应用初始化，不阻塞启动）
 registerServiceWorker();
